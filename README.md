@@ -6,6 +6,20 @@
 
 This project helps analyze your ChatGPT usage data, particularly in light of usage limits (e.g., for "o3" inference models). By processing your exported conversation data, you can get insights into your model utilization patterns.
 
+```shell
+(chatgpt-usage) ⋊> ~/chatgpt-usage on main ◦ uv run main2.py                                                19:20:01
+Calculating model usage for the period:
+Start: 2025-05-12 00:00:00 UTC (Timestamp: 1747008000.0)
+End:   2025-05-18 23:59:59 UTC (Timestamp: 1747612799.999999)
+------------------------------
+Model Usage Counts:
+  gpt-4o: 52
+  o3: 53
+  o4-mini-high: 114
+  research: 3
+  o4-mini: 6
+```
+
 ## Usage
 
 1. **Export Your Data**:
