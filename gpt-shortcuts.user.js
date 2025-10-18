@@ -767,7 +767,7 @@
         groups: loadConfig(),
         activeIndex: 0,
         manageMode: false,
-        collapsed: false
+        collapsed: true
       };
   
       const setState = (updates) => {
