@@ -524,9 +524,14 @@ body[data-theme='dark'] #cgpt-compact-nav { color-scheme: dark; }
 html[data-theme='light'] #cgpt-compact-nav,
 body[data-theme='light'] #cgpt-compact-nav { color-scheme: light; }
 
-#cgpt-compact-nav { position: fixed; top: 60px; right: 10px; width: var(--cgpt-nav-width, auto); min-width: 80px; max-width: var(--cgpt-nav-width, 210px); z-index: 2147483647 !important; font-family: var(--cgpt-nav-font); font-size: 13px; pointer-events: auto; background: transparent; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color: transparent; color: var(--cgpt-nav-text-strong); color-scheme: light dark; }
-#cgpt-compact-nav * { -webkit-user-select:none; user-select:none; }
-.compact-header { display:flex; align-items:center; justify-content:space-between; padding:4px 8px; margin-bottom:4px; background:var(--cgpt-nav-panel-bg); border-radius:var(--cgpt-nav-radius-lg); border:1px solid var(--cgpt-nav-panel-border); pointer-events:auto; cursor:move; box-shadow:var(--cgpt-nav-panel-shadow); min-width:100px; backdrop-filter:saturate(180%) blur(18px); }
+#cgpt-compact-nav { position: fixed; top: 60px; right: 10px; width: var(--cgpt-nav-width, auto); min-width: 80px; max-width: var(--cgpt-nav-width, 210px); z-index: 2147483647 !important; font-family: var(--cgpt-nav-font); font-size: 13px; pointer-events: auto; background: transparent; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color: transparent; color: var(--cgpt-nav-text-strong); color-scheme: light dark; display:flex; flex-direction:column; align-items:stretch; box-sizing:border-box; --cgpt-nav-gutter: 0px; }
+#cgpt-compact-nav.cgpt-has-scrollbar { --cgpt-nav-gutter: clamp(4px, calc(var(--cgpt-nav-width, 210px) / 32), 8px); }
+#cgpt-compact-nav * { -webkit-user-select:none; user-select:none; box-sizing:border-box; }
+#cgpt-compact-nav > .compact-header,
+#cgpt-compact-nav > .compact-list,
+#cgpt-compact-nav > .compact-footer { width:100%; }
+.compact-header { display:flex; align-items:center; justify-content:space-between; padding:4px 8px; margin-bottom:4px; background:var(--cgpt-nav-panel-bg); border-radius:var(--cgpt-nav-radius-lg); border:1px solid var(--cgpt-nav-panel-border); pointer-events:auto; cursor:move; box-shadow:var(--cgpt-nav-panel-shadow); min-width:100px; backdrop-filter:saturate(180%) blur(18px); width:100%; padding-inline-end: calc(8px + var(--cgpt-nav-gutter)); }
+.compact-actions { display:flex; align-items:center; gap:4px; width:100%; }
 .compact-title { font-size:11px; font-weight:600; color:var(--cgpt-nav-text-muted); display:flex; align-items:center; gap:3px; text-transform:uppercase; letter-spacing:.04em; }
 .compact-title span { color:var(--cgpt-nav-text-strong); }
 .compact-title svg { width:12px; height:12px; opacity:.55; }
@@ -536,11 +541,11 @@ body[data-theme='light'] #cgpt-compact-nav { color-scheme: light; }
 .compact-toggle:hover, .compact-refresh:hover { border-color:var(--cgpt-nav-accent-subtle); color:var(--cgpt-nav-accent); box-shadow:0 4px 14px rgba(147,51,234,0.12); background:var(--cgpt-nav-item-hover-bg); }
 .compact-toggle:active, .compact-refresh:active { transform:scale(.94); }
 .toggle-text { display:block; font-family:monospace; font-size:clamp(12px, calc(var(--cgpt-nav-width, 210px) / 14), 16px); }
-  .compact-list { max-height:400px; overflow-y:auto; overflow-x:hidden; padding:0; pointer-events:auto; display:flex; flex-direction:column; gap:8px; scrollbar-width:thin; scrollbar-color:var(--cgpt-nav-scrollbar-thumb) transparent; }
+  .compact-list { max-height:400px; overflow-y:auto; overflow-x:hidden; padding:0; pointer-events:auto; display:flex; flex-direction:column; gap:8px; scrollbar-width:thin; scrollbar-color:var(--cgpt-nav-scrollbar-thumb) transparent; width:100%; padding-right: var(--cgpt-nav-gutter); scrollbar-gutter: stable both-edges; }
 .compact-list::-webkit-scrollbar { width:3px; }
 .compact-list::-webkit-scrollbar-thumb { background:var(--cgpt-nav-scrollbar-thumb); border-radius:2px; }
 .compact-list::-webkit-scrollbar-thumb:hover { background:var(--cgpt-nav-scrollbar-thumb-hover); }
-.compact-item { display:block; padding:3px 8px; margin:0; border-radius:var(--cgpt-nav-radius); cursor:pointer; transition:all .16s ease; font-size:12px; line-height:1.4; min-height:20px; white-space:nowrap; overflow:hidden; /* 省略号交给 .compact-text */ pointer-events:auto; background:var(--cgpt-nav-item-bg); box-shadow:var(--cgpt-nav-item-shadow); width:auto; min-width:60px; max-width: calc(var(--cgpt-nav-width, 210px) - 20px); color:var(--cgpt-nav-text-strong); border:1px solid transparent; position:relative; padding-right:26px; }
+.compact-item { display:block; padding:3px 8px; margin:0; border-radius:var(--cgpt-nav-radius); cursor:pointer; transition:all .16s ease; font-size:12px; line-height:1.4; min-height:20px; white-space:nowrap; overflow:hidden; /* 省略号交给 .compact-text */ pointer-events:auto; background:var(--cgpt-nav-item-bg); box-shadow:var(--cgpt-nav-item-shadow); width:100%; min-width:0; color:var(--cgpt-nav-text-strong); border:1px solid transparent; position:relative; padding-right: calc(26px + var(--cgpt-nav-gutter)); }
 .compact-item:hover { background:var(--cgpt-nav-item-hover-bg); transform:translateX(2px); box-shadow:0 6px 16px rgba(15,23,42,0.12); }
 .compact-item.user { color:var(--cgpt-nav-positive); border-color:var(--cgpt-nav-positive); border-color:color-mix(in srgb, var(--cgpt-nav-positive) 45%, transparent); }
 .compact-item.assistant { color:var(--cgpt-nav-info); border-color:var(--cgpt-nav-info); border-color:color-mix(in srgb, var(--cgpt-nav-info) 45%, transparent); }
@@ -555,7 +560,7 @@ body[data-theme='light'] #cgpt-compact-nav { color-scheme: light; }
   .compact-star { background:var(--cgpt-nav-item-bg); border:1px solid var(--cgpt-nav-border-muted); color:var(--cgpt-nav-text-strong); cursor:pointer; width:clamp(20px, calc(var(--cgpt-nav-width, 210px) / 10), 26px); height:clamp(20px, calc(var(--cgpt-nav-width, 210px) / 10), 26px); display:flex; align-items:center; justify-content:center; border-radius:var(--cgpt-nav-radius); transition:all .2s ease; font-weight:600; line-height:1; box-shadow:var(--cgpt-nav-item-shadow); backdrop-filter:saturate(180%) blur(18px); font-size:clamp(12px, calc(var(--cgpt-nav-width, 210px) / 14), 16px); margin-left:4px; }
   .compact-star:hover { border-color:var(--cgpt-nav-accent-subtle); color:var(--cgpt-nav-accent); box-shadow:0 4px 14px rgba(147,51,234,0.12); background:var(--cgpt-nav-item-hover-bg); }
   .compact-star.active { background:var(--cgpt-nav-accent-subtle); color:var(--cgpt-nav-accent); border-color:var(--cgpt-nav-accent-subtle); }
-  .fav-toggle { position:absolute; right:6px; top:2px; border:none; background:transparent; color:var(--cgpt-nav-text-muted); cursor:pointer; font-size:12px; line-height:1; padding:2px; opacity:.7; }
+  .fav-toggle { position:absolute; right:calc(6px + var(--cgpt-nav-gutter)); top:2px; border:none; background:transparent; color:var(--cgpt-nav-text-muted); cursor:pointer; font-size:12px; line-height:1; padding:2px; opacity:.7; }
   .fav-toggle:hover { color:var(--cgpt-nav-accent); opacity:1; }
   .fav-toggle.active { color:var(--cgpt-nav-accent); opacity:1; }
 /* 锚点占位 */
@@ -565,11 +570,13 @@ body[data-theme='light'] #cgpt-compact-nav { color-scheme: light; }
 
 /* 调整宽度手柄 */
 .cgpt-resize-handle { position:absolute; left:-5px; top:0; bottom:0; width:8px; cursor:ew-resize; background:transparent; }
-.cgpt-resize-handle::after { content:''; position:absolute; left:2px; top:25%; bottom:25%; width:2px; background: var(--cgpt-nav-border-muted); border-radius:1px; opacity:.6; }
+.cgpt-resize-handle::after { content:''; position:absolute; left:2px; top:25%; bottom:25%; width:2px; background: var(--cgpt-nav-border-muted); border-radius:1px; opacity:0; transition:opacity .2s ease; }
+.cgpt-resize-handle:hover::after,
+#cgpt-compact-nav.cgpt-resizing .cgpt-resize-handle::after { opacity:.6; }
 
 /* 底部导航条 */
-.compact-footer { margin-top:6px; display:flex; gap:clamp(3px, calc(var(--cgpt-nav-width, 210px) / 70), 6px); }
-.nav-btn { flex:1 1 auto; padding: clamp(4px, calc(var(--cgpt-nav-width, 210px) / 56), 6px) clamp(6px, calc(var(--cgpt-nav-width, 210px) / 35), 8px); font-size: clamp(12px, calc(var(--cgpt-nav-width, 210px) / 14), 14px); border-radius:var(--cgpt-nav-radius-lg); border:1px solid var(--cgpt-nav-border-muted); background:var(--cgpt-nav-footer-bg); cursor:pointer; box-shadow:var(--cgpt-nav-item-shadow); line-height:1; color:var(--cgpt-nav-text-strong); transition:all .18s ease; backdrop-filter:saturate(180%) blur(18px); }
+.compact-footer { margin-top:6px; display:flex; gap:clamp(3px, calc(var(--cgpt-nav-width, 210px) / 70), 6px); width:100%; padding-right: var(--cgpt-nav-gutter); }
+.nav-btn { flex:1 1 25%; min-width:0; padding: clamp(4px, calc(var(--cgpt-nav-width, 210px) / 56), 6px) clamp(6px, calc(var(--cgpt-nav-width, 210px) / 35), 8px); font-size: clamp(12px, calc(var(--cgpt-nav-width, 210px) / 14), 14px); border-radius:var(--cgpt-nav-radius-lg); border:1px solid var(--cgpt-nav-border-muted); background:var(--cgpt-nav-footer-bg); cursor:pointer; box-shadow:var(--cgpt-nav-item-shadow); line-height:1; color:var(--cgpt-nav-text-strong); transition:all .18s ease; backdrop-filter:saturate(180%) blur(18px); }
 .nav-btn:hover { background:var(--cgpt-nav-footer-hover); transform:translateY(-1px); }
 .nav-btn:active { transform: translateY(1px); }
 
@@ -640,7 +647,7 @@ body[data-theme='light'] #cgpt-compact-nav { color-scheme: light; }
     nav.id = 'cgpt-compact-nav';
     nav.innerHTML = `
       <div class="compact-header">
-        <div style="display: flex; align-items: center; gap: 4px;">
+        <div class="compact-actions">
           <button class="compact-toggle" type="button" title="收起/展开"><span class="toggle-text">−</span></button>
           <button class="compact-refresh" type="button" title="刷新对话列表">⟳</button>
           <button class="compact-star" type="button" title="仅显示收藏">☆</button>
@@ -1280,6 +1287,7 @@ body[data-theme='light'] #cgpt-compact-nav { color-scheme: light; }
     const onUp = (e) => {
       if (!resizing) return;
       resizing = false;
+      nav.classList.remove('cgpt-resizing');
       document.removeEventListener('mousemove', onMove, true);
       document.removeEventListener('mouseup', onUp, true);
       const comp = getComputedStyle(nav);
@@ -1297,6 +1305,7 @@ body[data-theme='light'] #cgpt-compact-nav { color-scheme: light; }
       const rect = nav.getBoundingClientRect();
       startW = rect.width;
       startRight = rect.right;
+      nav.classList.add('cgpt-resizing');
       if (layout && typeof layout.beginUserInteraction === 'function') {
         try { layout.beginUserInteraction(); } catch {}
       }
@@ -1320,6 +1329,15 @@ body[data-theme='light'] #cgpt-compact-nav { color-scheme: light; }
   function renderList(ui) {
     const list = ui.nav.querySelector('.compact-list');
     if (!list) return;
+    const updateScrollbarState = () => {
+      const hasScroll = list.scrollHeight > list.clientHeight + 1;
+      list.classList.toggle('has-scroll', hasScroll);
+      ui.nav.classList.toggle('cgpt-has-scrollbar', hasScroll);
+    };
+    const queueScrollbarState = () => {
+      const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (cb) => setTimeout(cb, 0);
+      raf(() => updateScrollbarState());
+    };
     const removed = runCheckpointGC(false);
     if (removed) { saveCPSet(); }
     // 清理已失效的收藏（不再存在的消息或图钉）
@@ -1328,7 +1346,11 @@ body[data-theme='light'] #cgpt-compact-nav { color-scheme: light; }
     const favRemoved = runFavoritesGC(false, validKeys);
     if (favRemoved) updateStarBtnState(ui);
     const next = filterFav ? nextFull.filter(it => favSet.has(it.key)) : nextFull;
-    if (!next.length) { list.innerHTML = `<div class="compact-empty">${filterFav ? '暂无收藏' : '暂无对话'}</div>`; return; }
+    if (!next.length) {
+      list.innerHTML = `<div class="compact-empty">${filterFav ? '暂无收藏' : '暂无对话'}</div>`;
+      queueScrollbarState();
+      return;
+    }
     list.innerHTML = '';
     for (const item of next) {
       const node = document.createElement('div');
@@ -1346,6 +1368,7 @@ body[data-theme='light'] #cgpt-compact-nav { color-scheme: light; }
       node.setAttribute('draggable', 'false');
       list.appendChild(node);
     }
+    queueScrollbarState();
     if (!list._eventBound) {
       list.addEventListener('click', (e) => {
         // 行内收藏切换
