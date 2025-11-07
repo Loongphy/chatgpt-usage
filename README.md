@@ -12,7 +12,7 @@
 
 ### 使用监控 [usage-monitor.user.js](./usage-monitor.user.js)
 - **功能描述**: 记录在当前浏览器使用的模型次数
-- **更新建议**: 跟随源更新
+- **更新建议**: 使用当前项目版本，建议在油猴脚本管理器中禁用自动更新
 
 <img width="3355" height="1918" alt="image" src="https://github.com/user-attachments/assets/0d53919d-9347-46d0-ad45-e7afeacc08e5" />
 
