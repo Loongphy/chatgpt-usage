@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChatGPT用量统计
 // @namespace    https://github.com/tizee/tampermonkey-chatgpt-model-usage-monitor
-// @version      3.7 beta
+// @version      3.8.4
 // @description  优雅的 ChatGPT 模型调用量实时统计，界面简洁清爽（中文版），支持导入导出、一周分析报告、快捷键切换最小化（Ctrl/Cmd+I）
-// @author       tizee (original), schweigen (modified), Loongphy (modified)
+// @author       tizee (original), schweigen (modified)
 // @match        https://chatgpt.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=chatgpt.com
 // @grant        GM_setValue
@@ -184,21 +184,29 @@
 
         return `${hours}h ${minutes}m`;
     };
-
-    // （移除新增功能：不聚合最近24小时用量，仅保留样式美化）
     // Model ID redirection
     function resolveRedirectedModelId(originalModelId) {
+        // 将超长的 Alpha 模型ID映射为易读的短名（仅用于统计/显示）
+        if (originalModelId === 'chatgpt_alpha_model_external_access_reserved_gate_13') {
+            console.debug('[monitor] Redirecting long alpha id -> alpha');
+            return 'alpha';
+        }
         // auto 等价于 gpt-5（需要走思考检测）
         if (originalModelId === 'auto') {
             console.debug('[monitor] Redirecting model auto -> gpt-5');
             return 'gpt-5';
         }
-        // 在 team/plus/free 套餐下，gpt-4-5 重定向到 gpt-5（由 gpt-5 逻辑决定是否计为 thinking）
+        // 在 team/plus/free 套餐下，gpt-4-5 重定向到 gpt-5-1（沿用 instant 逻辑，不计入 thinking）
         try {
             const plan = (usageData && usageData.planType) || 'team';
             if ((plan === 'team' || plan === 'plus' || plan === 'free') && originalModelId === 'gpt-4-5') {
-                console.debug('[monitor] Redirecting model gpt-4-5 -> gpt-5 for plan', plan);
-                return 'gpt-5-instant';
+                console.debug('[monitor] Redirecting model gpt-4-5 -> gpt-5-1 for plan', plan);
+                return 'gpt-5-1-instant';
+            }
+            // 非 Pro 套餐下，o3-pro 重定向到 gpt-5-1（instant，不计思考）
+            if (plan !== 'pro' && originalModelId === 'o3-pro') {
+                console.debug('[monitor] Redirecting model o3-pro -> gpt-5-1 for plan', plan);
+                return 'gpt-5-1-instant';
             }
         } catch (e) { /* noop */ }
         return originalModelId;
@@ -231,6 +239,16 @@
             sourceEndpoint: null
         },
         models: {
+            "gpt-5-1": {
+                requests: [],
+                quota: 10000, // Team套餐：无限制
+                windowType: "hour3" // 3-hour window
+            },
+            "gpt-5-1-thinking": {
+                requests: [],
+                quota: 3000, // Team套餐：3000次/周
+                windowType: "weekly" // 7-day window
+            },
             "gpt-5": {
                 requests: [],
                 quota: 10000, // Team套餐：无限制
@@ -270,11 +288,6 @@
                 requests: [],
                 quota: 100, // Team套餐：100次/周
                 windowType: "weekly" // 7-day window
-            },
-            "gpt-4-5": {
-                requests: [],
-                quota: 5, // Team套餐：5次/周
-                windowType: "weekly" // 7-day window
             }
         },
     };
@@ -282,9 +295,6 @@
     // 模型固定显示顺序
     const MODEL_DISPLAY_ORDER = [
         "gpt-5-pro",
-        "gpt-5-thinking",
-        "gpt-5-t-mini",
-        "gpt-5",
         "o3-pro",
         "gpt-4-5",
         "o3",
@@ -292,6 +302,12 @@
         "o4-mini",
         "gpt-4o",
         "gpt-4-1",
+        // 其他模型（示例：alpha）
+        "alpha",
+        // 置底顺序：thinking -> t-mini -> base -> mini
+        "gpt-5-1-thinking",
+        "gpt-5-t-mini",
+        "gpt-5-1",
         "gpt-5-mini"
     ];
 
@@ -307,6 +323,8 @@
                 // 移除共用额度组，恢复独立配额
             },
             models: {
+                "gpt-5-1": { quota: 10000, windowType: "hour3" }, // unlimited
+                "gpt-5-1-thinking": { quota: 3000, windowType: "weekly" }, // 3000次/周
                 "gpt-5": { quota: 10000, windowType: "hour3" }, // unlimited
                 "gpt-5-thinking": { quota: 3000, windowType: "weekly" }, // 3000次/周
                 "gpt-5-t-mini": { quota: 10000, windowType: "hour3" }, // 10000次/3小时
@@ -316,10 +334,6 @@
                 "o4-mini": { quota: 300, windowType: "daily" },
                 "o4-mini-high": { quota: 100, windowType: "daily" },
                 "o3": { quota: 100, windowType: "weekly" },
-                // o3-pro 配置：Team/EDU/Enterprise 为 20次/月
-                "o3-pro": { quota: 20, windowType: "monthly" },
-                // gpt-4-5：Team套餐 5次/周
-                "gpt-4-5": { quota: 5, windowType: "weekly" },
                 "gpt-5-mini": { quota: 10000, windowType: "hour3" }
             }
         },
@@ -330,6 +344,8 @@
                 // 移除共用额度组，恢复独立配额
             },
             models: {
+                "gpt-5-1": { quota: 160, windowType: "hour3" },
+                "gpt-5-1-thinking": { quota: 3000, windowType: "weekly" }, // 3000次/周
                 "gpt-5": { quota: 160, windowType: "hour3" },
                 "gpt-5-thinking": { quota: 3000, windowType: "weekly" }, // 3000次/周
                 "gpt-5-t-mini": { quota: 10000, windowType: "hour3" }, // 10000次/3小时
@@ -345,8 +361,10 @@
             name: "Free",
             sharedQuotaGroups: {},
             models: {
+                "gpt-5-1": { quota: 10, windowType: "hour5" },
                 "gpt-5": { quota: 10, windowType: "hour5" },
                 // thinking: 5小时 1次
+                "gpt-5-1-thinking": { quota: 1, windowType: "hour5" },
                 "gpt-5-thinking": { quota: 1, windowType: "hour5" },
                 // thinking-mini: 每天 10 次
                 "gpt-5-t-mini": { quota: 10, windowType: "daily" },
@@ -358,8 +376,10 @@
             name: "Go",
             sharedQuotaGroups: {},
             models: {
+                "gpt-5-1": { quota: 100, windowType: "hour5" },
                 "gpt-5": { quota: 100, windowType: "hour5" },
                 // thinking: 5小时 10次
+                "gpt-5-1-thinking": { quota: 10, windowType: "hour5" },
                 "gpt-5-thinking": { quota: 10, windowType: "hour5" },
                 // thinking-mini: 每天 100 次
                 "gpt-5-t-mini": { quota: 100, windowType: "daily" },
@@ -373,6 +393,8 @@
             },
             models: {
                 // 全量同步 Team 配置，额外：gpt-4-5 为 5次/周
+                "gpt-5-1": { quota: 10000, windowType: "hour3" },
+                "gpt-5-1-thinking": { quota: 3000, windowType: "weekly" },
                 "gpt-5": { quota: 10000, windowType: "hour3" },
                 "gpt-5-thinking": { quota: 3000, windowType: "weekly" },
                 "gpt-5-t-mini": { quota: 10000, windowType: "hour3" },
@@ -382,7 +404,6 @@
                 "o4-mini": { quota: 300, windowType: "daily" },
                 "o4-mini-high": { quota: 100, windowType: "daily" },
                 "o3": { quota: 100, windowType: "weekly" },
-                "o3-pro": { quota: 20, windowType: "monthly" },
                 "gpt-4-5": { quota: 5, windowType: "weekly" },
                 "gpt-5-mini": { quota: 10000, windowType: "hour3" }
             }
@@ -394,6 +415,8 @@
             },
             models: {
                 // 全量同步 Team 配置，额外：gpt-4-5 为 5次/周
+                "gpt-5-1": { quota: 10000, windowType: "hour3" },
+                "gpt-5-1-thinking": { quota: 3000, windowType: "weekly" },
                 "gpt-5": { quota: 10000, windowType: "hour3" },
                 "gpt-5-thinking": { quota: 3000, windowType: "weekly" },
                 "gpt-5-t-mini": { quota: 10000, windowType: "hour3" },
@@ -403,7 +426,6 @@
                 "o4-mini": { quota: 300, windowType: "daily" },
                 "o4-mini-high": { quota: 100, windowType: "daily" },
                 "o3": { quota: 100, windowType: "weekly" },
-                "o3-pro": { quota: 20, windowType: "monthly" },
                 "gpt-4-5": { quota: 5, windowType: "weekly" },
                 "gpt-5-mini": { quota: 10000, windowType: "hour3" }
             }
@@ -412,23 +434,25 @@
             name: "Pro",
             sharedQuotaGroups: {},
             models: {
-                "gpt-5": { quota: 10000, windowType: "hour3" }, // Pro无限制
-                "gpt-5-thinking": { quota: 10000, windowType: "hour3" }, // Pro无限制
-                "gpt-5-t-mini": { quota: 10000, windowType: "hour3" }, // Pro无限制
+                "gpt-5-1": { quota: 10000, windowType: "daily" }, // Pro：10000次/24小时
+                "gpt-5-1-thinking": { quota: 10000, windowType: "daily" }, // Pro：10000次/24小时
+                "gpt-5": { quota: 10000, windowType: "daily" }, // Pro：10000次/24小时
+                "gpt-5-thinking": { quota: 10000, windowType: "daily" }, // Pro：10000次/24小时
+                "gpt-5-t-mini": { quota: 10000, windowType: "daily" }, // Pro：10000次/24小时
                 "gpt-5-pro": { quota: 100, windowType: "daily" }, // Pro: 每天100次
-                "gpt-4o": { quota: 10000, windowType: "hour3" }, // Pro无限制
-                "gpt-4-1": { quota: 10000, windowType: "hour3" }, // Pro无限制
-                "o4-mini": { quota: 10000, windowType: "hour3" }, // Pro无限制
-                "o4-mini-high": { quota: 10000, windowType: "hour3" }, // Pro无限制
-                "o3": { quota: 10000, windowType: "hour3" }, // Pro无限制
+                "gpt-4o": { quota: 10000, windowType: "daily" }, // Pro：10000次/24小时
+                "gpt-4-1": { quota: 10000, windowType: "daily" }, // Pro：10000次/24小时
+                "o4-mini": { quota: 10000, windowType: "daily" }, // Pro：10000次/24小时
+                "o4-mini-high": { quota: 10000, windowType: "daily" }, // Pro：10000次/24小时
+                "o3": { quota: 10000, windowType: "daily" }, // Pro：10000次/24小时
                 "o3-pro": { quota: 100, windowType: "daily" }, // Pro: 每天100次
                 "gpt-4-5": { quota: 100, windowType: "daily" }, // Pro: 每天100次
-                "gpt-5-mini": { quota: 10000, windowType: "hour3" }
+                "gpt-5-mini": { quota: 10000, windowType: "daily" }
             }
         }
     };
 
-    // Updated Styles
+    // Updated Styles（基础深色样式）
     GM_addStyle(`
   #chatUsageMonitor {
     position: fixed;
@@ -448,7 +472,11 @@
     user-select: none;
     resize: both;
     /* 避免拖动时 left/top 被动画影响导致不跟手 */
-    transition: box-shadow 0.3s ease, opacity 0.2s ease, background-color 0.2s ease, width 0.2s ease, height 0.2s ease;
+    transition: box-shadow 0.3s ease,
+                opacity 0.2s ease,
+                background-color 0.2s ease,
+                width 0.2s ease,
+                height 0.2s ease;
     transform-origin: top left;  /* 改为左侧 */
   }
 
@@ -474,8 +502,8 @@
     opacity: 1;
   }
 
+  /* 胶囊悬浮球 */
   #chatUsageMonitor.minimized {
-    /* 改为 ChatGPT 风格的毛玻璃胶囊按钮 */
     width: auto !important;
     min-width: 44px;
     height: 36px !important;
@@ -485,10 +513,10 @@
     resize: none;
     opacity: 0.92;
     cursor: pointer;
-    background-color: rgba(26,27,30,0.72);
+    background-color: rgba(26, 27, 30, 0.72);
     backdrop-filter: saturate(180%) blur(8px);
-    border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     bottom: auto;
     top: 100px;  /* 往下移动一点点 */
     left: ${STYLE.spacing.lg};  /* 改为左侧 */
@@ -504,7 +532,6 @@
   }
 
   #chatUsageMonitor.minimized::before {
-    /* 静态文案，避免引入新逻辑 */
     content: "用量";
     color: ${COLORS.white};
     position: absolute;
@@ -517,7 +544,7 @@
     justify-content: center;
     font-size: 13px;
     font-weight: 600;
-    letter-spacing: .2px;
+    letter-spacing: 0.2px;
   }
 
   #chatUsageMonitor header {
@@ -609,7 +636,7 @@
     padding: ${STYLE.spacing.sm} ${STYLE.spacing.md};
     border: none;
     cursor: pointer;
-    color: ${COLORS.white};
+    color: ${COLORS.text};
     font-weight: 500;
     font-size: ${STYLE.textSize.sm};
     transition: all 0.2s ease;
@@ -849,12 +876,16 @@
 
   #chatUsageMonitor .table-header {
     font-family: monospace;
-    color: ${COLORS.white};
+    color: ${COLORS.text};
     font-size:  ${STYLE.textSize.xs};
     line-height: ${STYLE.lineHeight.xs};
     display : grid;
     align-items: center;
-    grid-template-columns: 2fr 1.5fr 1.5fr 2fr;
+    /* 用量页：给模型名称更多空间，避免被挤断 */
+    grid-template-columns: 3fr 1.1fr 1.3fr 1.8fr;
+    padding: 4px 8px;
+    margin-top: 8px;
+    border-bottom: 1px solid ${COLORS.border};
   }
 
   #chatUsageMonitor .model-row {
@@ -864,8 +895,10 @@
     font-size:  ${STYLE.textSize.xs};
     line-height: ${STYLE.lineHeight.xs};
     display : grid;
-    grid-template-columns: 2fr 1.5fr 1.5fr 2fr;
+    grid-template-columns: 3fr 1.1fr 1.3fr 1.8fr;
     align-items: center;
+    padding: 4px 8px;
+    border-radius: 6px;
   }
 
   #chatUsageMonitor .model-row:hover {
@@ -883,7 +916,7 @@
   #chatUsageMonitor .deepresearch-title {
     font-family: monospace;
     font-weight: bold;
-    color: ${COLORS.white};
+    color: ${COLORS.text};
     font-size: ${STYLE.textSize.xs};
     margin: 6px 0;
   }
@@ -901,7 +934,7 @@
     -moz-appearance: none;    /* Firefox */
     appearance: none;         /* Standard modern browsers */
     background-color: transparent;
-    color: #ffffff;
+    color: ${COLORS.text};
     border: none;
     cursor: pointer;
     color: ${COLORS.white};
@@ -913,7 +946,7 @@
   /* Style the list of options (when the dropdown is open) */
   .custom-select select option {
     background: ${COLORS.background};
-    color: ${COLORS.white};
+    color: ${COLORS.text};
   }
 
   /* Optional: highlight the hovered option in some browsers */
@@ -956,7 +989,7 @@
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background: ${COLORS.background};
+    background: ${COLORS.surface};
     color: ${COLORS.success};
     padding: ${STYLE.spacing.sm} ${STYLE.spacing.md};
     border-radius: ${STYLE.borderRadius};
@@ -1034,7 +1067,7 @@
 
             // 确保添加的新模型在现有配置中也存在
             // 注意：仅用于迁移旧存储，新增项应与下方分支匹配
-            const newModels = ["gpt-5", "gpt-5-thinking", "gpt-5-pro", "gpt-4-1", "gpt-5-t-mini"];
+            const newModels = ["gpt-5", "gpt-5-thinking", "gpt-5-1", "gpt-5-1-thinking", "gpt-5-pro", "gpt-4-1", "gpt-5-t-mini"];
             newModels.forEach(modelId => {
                 if (!usageData.models[modelId]) {
                     console.debug(`[monitor] Adding new model "${modelId}" to configuration.`);
@@ -1045,6 +1078,18 @@
                             windowType: "hour3"
                         };
                     } else if (modelId === "gpt-5-thinking") {
+                        usageData.models[modelId] = {
+                            requests: [],
+                            quota: 3000,
+                            windowType: "weekly"
+                        };
+                    } else if (modelId === "gpt-5-1") {
+                        usageData.models[modelId] = {
+                            requests: [],
+                            quota: 1000,
+                            windowType: "hour3"
+                        };
+                    } else if (modelId === "gpt-5-1-thinking") {
                         usageData.models[modelId] = {
                             requests: [],
                             quota: 3000,
@@ -1170,6 +1215,25 @@
     };
 
     let usageData = Storage.get();
+
+    function refreshUsageData() {
+        usageData = Storage.get();
+        return usageData;
+    }
+
+    function updateUsageData(mutator) {
+        let updatedData;
+        Storage.update(data => {
+            updatedData = data;
+            mutator(data);
+        });
+        if (updatedData) {
+            usageData = updatedData;
+        } else {
+            refreshUsageData();
+        }
+        return usageData;
+    }
 
     // 导出功能
     function exportUsageData() {
@@ -1395,13 +1459,16 @@
         }
 
         // 按固定顺序分析每个模型（排除特殊模型）
+        const currentPlanForWeekly = (usageData && usageData.planType) || 'team';
         const sortedModelEntries = MODEL_DISPLAY_ORDER
             .filter(modelKey => usageData.models[modelKey])
+            .filter(modelKey => !(modelKey === 'o3-pro' && currentPlanForWeekly !== 'pro'))
             .map(modelKey => [modelKey, usageData.models[modelKey]]);
 
         // 添加不在固定顺序中的其他模型（如果有的话）
         Object.entries(usageData.models).forEach(([modelKey, model]) => {
             if (!MODEL_DISPLAY_ORDER.includes(modelKey)) {
+                if (modelKey === 'o3-pro' && currentPlanForWeekly !== 'pro') return;
                 sortedModelEntries.push([modelKey, model]);
             }
         });
@@ -1478,13 +1545,16 @@
         }
 
         // 按固定顺序分析每个模型（排除特殊模型）
+        const currentPlanForMonthly = (usageData && usageData.planType) || 'team';
         const sortedModelEntries = MODEL_DISPLAY_ORDER
             .filter(modelKey => usageData.models[modelKey])
+            .filter(modelKey => !(modelKey === 'o3-pro' && currentPlanForMonthly !== 'pro'))
             .map(modelKey => [modelKey, usageData.models[modelKey]]);
 
         // 添加不在固定顺序中的其他模型（如果有的话）
         Object.entries(usageData.models).forEach(([modelKey, model]) => {
             if (!MODEL_DISPLAY_ORDER.includes(modelKey)) {
+                if (modelKey === 'o3-pro' && currentPlanForMonthly !== 'pro') return;
                 sortedModelEntries.push([modelKey, model]);
             }
         });
@@ -1529,9 +1599,52 @@
         return report;
     }
 
+    // 将未知模型（未在我们预设列表中的）合并到 gpt-5-1-instant（仅用于 HTML 导出展示，不改动存储）
+    function mergeUnknownModelsForHtml(report) {
+        try {
+            const KNOWN = new Set([
+                // 采用固定显示顺序中的模型
+                ...MODEL_DISPLAY_ORDER,
+                // 再补充兼容显示顺序外但“已知”的模型键
+                'gpt-5', 'gpt-5-thinking', 'gpt-5-1', 'gpt-5-1-thinking', 'gpt-5-1-instant', 'alpha'
+            ]);
+
+            const targetKey = 'gpt-5-1-instant';
+            if (!report.modelBreakdown[targetKey]) report.modelBreakdown[targetKey] = 0;
+
+            const unknownKeys = Object.keys(report.modelBreakdown).filter(k => !KNOWN.has(k));
+            if (unknownKeys.length === 0) return report;
+
+            // 合并总览
+            for (const key of unknownKeys) {
+                report.modelBreakdown[targetKey] += (report.modelBreakdown[key] || 0);
+                delete report.modelBreakdown[key];
+            }
+
+            // 合并每日数据
+            for (const day of report.dailyData) {
+                let add = 0;
+                for (const key of unknownKeys) {
+                    if (day.models[key]) {
+                        add += day.models[key];
+                        delete day.models[key];
+                    }
+                }
+                if (add > 0) {
+                    day.models[targetKey] = (day.models[targetKey] || 0) + add;
+                }
+            }
+
+            return report;
+        } catch (e) {
+            console.warn('[monitor] Failed to merge unknown models for HTML:', e);
+            return report;
+        }
+    }
+
     // 导出一周分析报告为HTML文件
     function exportWeeklyAnalysis() {
-        const report = generateWeeklyReport();
+        const report = mergeUnknownModelsForHtml(generateWeeklyReport());
 
         // 创建按固定顺序排列的模型数组
         const sortedModelKeys = MODEL_DISPLAY_ORDER
@@ -1849,7 +1962,7 @@
 
     // 导出一个月分析报告为HTML文件
     function exportMonthlyAnalysis() {
-        const report = generateMonthlyReport();
+        const report = mergeUnknownModelsForHtml(generateMonthlyReport());
 
         // 创建按固定顺序排列的模型数组
         const sortedModelKeys = MODEL_DISPLAY_ORDER
@@ -2355,7 +2468,7 @@
         const row = document.createElement("div");
         row.className = "model-row";
 
-        // 左列：模型名称 + 徽章
+        // Model Name cell with window type badge
         const modelNameContainer = document.createElement("div");
         modelNameContainer.style.display = "flex";
         modelNameContainer.style.alignItems = "center";
@@ -2363,13 +2476,14 @@
         const modelName = document.createElement("span");
         modelName.textContent = modelKey;
         modelNameContainer.appendChild(modelName);
-
+        
+        // 如果使用共用额度，添加共享标识
         if (model.sharedGroup) {
             const sharedBadge = document.createElement("span");
-            sharedBadge.style.marginLeft = "6px";
+            sharedBadge.style.marginLeft = "4px";
             sharedBadge.style.fontSize = "10px";
-            sharedBadge.style.padding = "1px 4px";
-            sharedBadge.style.borderRadius = "4px";
+            sharedBadge.style.padding = "1px 3px";
+            sharedBadge.style.borderRadius = "3px";
             sharedBadge.style.backgroundColor = COLORS.warning;
             sharedBadge.style.color = COLORS.background;
             sharedBadge.style.fontWeight = "bold";
@@ -2378,50 +2492,101 @@
             modelNameContainer.appendChild(sharedBadge);
         }
 
+        // Add window type badge
         const windowBadge = document.createElement("span");
         windowBadge.className = `window-badge ${windowType}`;
-        windowBadge.textContent = windowType === 'hour3' ? '3h' : windowType === 'hour5' ? '5h' : windowType === 'daily' ? '24h' : windowType === 'weekly' ? '7d' : '30d';
-        windowBadge.title = `${windowType === 'hour3' ? '3 hour' : windowType === 'hour5' ? '5 hour' : windowType === 'daily' ? '24 hour' : windowType === 'weekly' ? '7 day' : '30 day'} sliding window`;
+
+        // Display badge based on window type
+        if (windowType === "hour3") {
+            windowBadge.textContent = "3h";
+        } else if (windowType === "hour5") {
+            windowBadge.textContent = "5h";
+        } else if (windowType === "daily") {
+            windowBadge.textContent = "24h";
+        } else if (windowType === "weekly") {
+            windowBadge.textContent = "7d";
+        } else {
+            windowBadge.textContent = "30d";
+        }
+
+        windowBadge.title = `${windowType === "hour3" ? "3 hour" :
+                            windowType === "hour5" ? "5 hour" :
+                            windowType === "daily" ? "24 hour" :
+                            windowType === "weekly" ? "7 day" : "30 day"} sliding window`;
+
         modelNameContainer.appendChild(windowBadge);
         row.appendChild(modelNameContainer);
 
-        // 右列：用量文本 + 进度 + 可选的窗口重置时间
-        const usageContainer = document.createElement("div");
+        // Last Request Time cell
+        const lastUpdateValue = document.createElement("div");
+        lastUpdateValue.className = "request-time";
+        lastUpdateValue.textContent = lastRequestTime;
+        row.appendChild(lastUpdateValue);
 
-        // 文本：count / quota
+        // Usage cell
+        const usageValue = document.createElement("div");
+
+        // 处理不同的配额显示
         let quotaDisplay;
         if (quota === 0) {
+            // 检查当前套餐类型
             const currentPlan = usageData.planType || "team";
-            quotaDisplay = currentPlan === 'pro' ? '∞' : '不可用';
+            if (currentPlan === "pro") {
+                quotaDisplay = "∞"; // Pro套餐无限制
+            } else {
+                quotaDisplay = "不可用"; // 其他套餐中0配额表示不可用
+            }
         } else {
             quotaDisplay = quota;
         }
 
-        const usageText = document.createElement('div');
-        usageText.textContent = `${count} / ${quotaDisplay}`;
-        usageContainer.appendChild(usageText);
+        // 显示使用情况
+        if (model.sharedGroup) {
+            // 共享额度显示：显示全部使用量
+            usageValue.innerHTML = `${count} / ${quotaDisplay} <span style="font-size: 10px; color: ${COLORS.secondaryText};">(共享)</span>`;
+        } else {
+            usageValue.textContent = `${count} / ${quotaDisplay}`;
+        }
 
+        // 根据设置决定是否显示窗口刷新时间
+        if (windowEndInfo && usageData.showWindowResetTime) {
+            const windowInfoEl = document.createElement("div");
+            windowInfoEl.className = "window-info";
+            windowInfoEl.textContent = windowEndInfo;
+            usageValue.appendChild(windowInfoEl);
+        }
+
+        row.appendChild(usageValue);
+
+        // Progress Bar cell
+        const progressCell = document.createElement("div");
+
+        // 处理进度条显示
         if (quota === 0) {
             const currentPlan = usageData.planType || "team";
-            const hint = document.createElement('div');
-            if (currentPlan === 'pro') {
-                hint.textContent = '无限制';
-                hint.style.color = COLORS.success;
+            if (currentPlan === "pro") {
+                progressCell.textContent = "无限制";
+                progressCell.style.color = COLORS.success;
+                progressCell.style.fontStyle = "italic";
             } else {
-                hint.textContent = '不可用';
-                hint.style.color = COLORS.disabled;
+                progressCell.textContent = "不可用";
+                progressCell.style.color = COLORS.disabled;
+                progressCell.style.fontStyle = "italic";
             }
-            hint.style.fontStyle = 'italic';
-            usageContainer.appendChild(hint);
         } else {
+            // For models with quota > 0
             const usagePercent = count / quota;
+
             if (usageData.progressType === "dots") {
+                // Dot-based progress implementation
                 const dotContainer = document.createElement("div");
                 dotContainer.className = "dot-progress";
                 const totalDots = 8;
+
                 for (let i = 0; i < totalDots; i++) {
                     const dot = document.createElement("div");
                     dot.className = "dot";
+
                     const dotThreshold = (i + 1) / totalDots;
                     if (usagePercent >= 1) {
                         dot.classList.add("dot-exceeded");
@@ -2432,33 +2597,32 @@
                     } else {
                         dot.classList.add("dot-empty");
                     }
+
                     dotContainer.appendChild(dot);
                 }
-                usageContainer.appendChild(dotContainer);
+                progressCell.appendChild(dotContainer);
             } else {
+                // Enhanced progress bar implementation
                 const progressContainer = document.createElement("div");
                 progressContainer.className = "progress-container";
+
                 const progressBar = document.createElement("div");
                 progressBar.className = "progress-bar";
+
                 if (usagePercent > 1) {
                     progressBar.classList.add("exceeded");
                 } else if (usagePercent < 0.3) {
                     progressBar.classList.add("low-usage");
                 }
+
                 progressBar.style.width = `${Math.min(usagePercent * 100, 100)}%`;
+
                 progressContainer.appendChild(progressBar);
-                usageContainer.appendChild(progressContainer);
+                progressCell.appendChild(progressContainer);
             }
         }
 
-        if (windowEndInfo && usageData.showWindowResetTime) {
-            const windowInfoEl = document.createElement("div");
-            windowInfoEl.className = "window-info";
-            windowInfoEl.textContent = windowEndInfo;
-            usageContainer.appendChild(windowInfoEl);
-        }
-
-        row.appendChild(usageContainer);
+        row.appendChild(progressCell);
 
         return row;
     }
@@ -2472,102 +2636,108 @@
             return;
         }
 
-        console.log(`[monitor] Applying ${planConfig.name} plan configuration`);
+        let applied = false;
+        updateUsageData(data => {
+            console.log(`[monitor] Applying ${planConfig.name} plan configuration`);
 
-        // 保存现有的使用记录
-        const existingUsageData = {};
-        Object.entries(usageData.models).forEach(([modelKey, model]) => {
-            if (model.requests && model.requests.length > 0) {
-                existingUsageData[modelKey] = [...model.requests];
-            }
-        });
-
-        // 清理旧的共用额度组（如果存在的话）
-        if (usageData.sharedQuotaGroups) {
-            // 将共用额度组的使用记录迁移回独立模型
-            Object.entries(usageData.sharedQuotaGroups).forEach(([groupId, group]) => {
-                if (group.requests && group.models) {
-                    group.models.forEach(modelId => {
-                        // 将该模型的请求从共用组保存到existingUsageData
-                        if (group.requests.length > 0) {
-                            const modelRequests = group.requests.filter(req => req.modelId === modelId);
-                            if (modelRequests.length > 0) {
-                                if (!existingUsageData[modelId]) {
-                                    existingUsageData[modelId] = [];
-                                }
-                                existingUsageData[modelId].push(...modelRequests.map(req => tsOf(req)));
-                            }
-                        }
-                    });
+            // 保存现有的使用记录
+            const existingUsageData = {};
+            Object.entries(data.models || {}).forEach(([modelKey, model]) => {
+                if (model.requests && model.requests.length > 0) {
+                    existingUsageData[modelKey] = [...model.requests];
                 }
             });
-        }
 
-        // 初始化共用额度组
-        usageData.sharedQuotaGroups = {};
-        if (planConfig.sharedQuotaGroups) {
-            Object.entries(planConfig.sharedQuotaGroups).forEach(([groupId, groupConfig]) => {
-                usageData.sharedQuotaGroups[groupId] = {
-                    requests: [],
-                    quota: groupConfig.quota,
-                    windowType: groupConfig.windowType,
-                    models: groupConfig.models,
-                    displayName: groupConfig.displayName
-                };
-            });
-        }
-
-        // 重置模型配置，保留现有使用记录
-        const newModels = {};
-        
-        // 只为当前套餐支持的模型创建配置
-        Object.entries(planConfig.models).forEach(([modelKey, config]) => {
-            // 创建模型配置
-            newModels[modelKey] = {
-                requests: existingUsageData[modelKey] || [], // 恢复历史记录
-            };
-
-            if (config.sharedGroup) {
-                // 使用共用额度组的模型
-                newModels[modelKey].sharedGroup = config.sharedGroup;
-                
-                // 如果有历史记录，将其迁移到共用组
-                if (existingUsageData[modelKey] && existingUsageData[modelKey].length > 0) {
-                    const groupId = config.sharedGroup;
-                    if (usageData.sharedQuotaGroups[groupId]) {
-                        existingUsageData[modelKey].forEach(req => {
-                            usageData.sharedQuotaGroups[groupId].requests.push({
-                                t: tsOf(req),
-                                modelId: modelKey
-                            });
+            // 清理旧的共用额度组（如果存在的话）
+            if (data.sharedQuotaGroups) {
+                Object.entries(data.sharedQuotaGroups).forEach(([groupId, group]) => {
+                    if (group.requests && group.models) {
+                        group.models.forEach(modelId => {
+                            if (group.requests.length > 0) {
+                                const modelRequests = group.requests.filter(req => req.modelId === modelId);
+                                if (modelRequests.length > 0) {
+                                    if (!existingUsageData[modelId]) {
+                                        existingUsageData[modelId] = [];
+                                    }
+                                    existingUsageData[modelId].push(...modelRequests.map(req => tsOf(req)));
+                                }
+                            }
                         });
                     }
-                    // 清空独立模型的记录，因为已经移到共用组
-                    newModels[modelKey].requests = [];
-                }
-            } else {
-                // 独立配额的模型
-                newModels[modelKey].quota = config.quota;
-                newModels[modelKey].windowType = config.windowType;
+                });
             }
+
+            // 初始化共用额度组
+            data.sharedQuotaGroups = {};
+            if (planConfig.sharedQuotaGroups) {
+                Object.entries(planConfig.sharedQuotaGroups).forEach(([groupId, groupConfig]) => {
+                    data.sharedQuotaGroups[groupId] = {
+                        requests: [],
+                        quota: groupConfig.quota,
+                        windowType: groupConfig.windowType,
+                        models: groupConfig.models,
+                        displayName: groupConfig.displayName
+                    };
+                });
+            }
+
+            // 重置模型配置，保留现有使用记录
+            const newModels = {};
+            Object.entries(planConfig.models).forEach(([modelKey, config]) => {
+                newModels[modelKey] = {
+                    requests: existingUsageData[modelKey] ? [...existingUsageData[modelKey]] : [],
+                };
+
+                if (config.sharedGroup) {
+                    newModels[modelKey].sharedGroup = config.sharedGroup;
+
+                    if (existingUsageData[modelKey] && existingUsageData[modelKey].length > 0) {
+                        const groupId = config.sharedGroup;
+                        if (data.sharedQuotaGroups[groupId]) {
+                            existingUsageData[modelKey].forEach(req => {
+                                data.sharedQuotaGroups[groupId].requests.push({
+                                    t: tsOf(req),
+                                    modelId: modelKey
+                                });
+                            });
+                        }
+                        newModels[modelKey].requests = [];
+                    }
+                } else {
+                    newModels[modelKey].quota = config.quota;
+                    newModels[modelKey].windowType = config.windowType;
+                }
+            });
+
+            data.models = newModels;
+            applied = true;
         });
 
-        // 应用新的模型配置
-        usageData.models = newModels;
-
-        // 保存更新后的数据
-        Storage.set(usageData);
-        console.log(`[monitor] Successfully applied ${planConfig.name} plan`);
-        console.log(`[monitor] Current models:`, Object.keys(usageData.models));
+        if (applied) {
+            console.log(`[monitor] Successfully applied ${planConfig.name} plan`);
+            console.log(`[monitor] Current models:`, Object.keys(usageData.models));
+        }
     }
 
     // Event Handlers
     function handleDeleteModel(modelKey) {
-        if (confirm(`确定要删除模型 "${modelKey}" 的配置吗？`)) {
-            delete usageData.models[modelKey];
-            Storage.set(usageData);
+        if (!confirm(`确定要删除模型 "${modelKey}" 的配置吗？`)) {
+            return;
+        }
+
+        let removed = false;
+        updateUsageData(data => {
+            if (data.models[modelKey]) {
+                delete data.models[modelKey];
+                removed = true;
+            }
+        });
+
+        if (removed) {
             updateUI();
             showToast(`模型 "${modelKey}" 已删除。`);
+        } else {
+            showToast(`未找到模型 "${modelKey}"。`, "warning");
         }
     }
 
@@ -2600,16 +2770,12 @@
             updateSettingsContent(settingsContent);
             animateText(settingsContent, { duration: 500, delay: 0, reverse: false, absolute: false, pointerEvents: true });
         }
-
-        // 仅美化，不动态更新最小化文案
     }
 
     let sortDescending = true; // 移除这个变量，不再需要排序功能
 
     function updateUsageContent(container) {
         container.innerHTML = "";
-
-        // 使用页面简化为两列：模型 / 用量+进度
 
         // Table Header Row
         const tableHeader = document.createElement("div");
@@ -2620,25 +2786,19 @@
         modelNameHeader.textContent = "模型名称";
         tableHeader.appendChild(modelNameHeader);
 
+        const lastUpdateHeader = document.createElement("div");
+        lastUpdateHeader.textContent = "最后使用";
+        tableHeader.appendChild(lastUpdateHeader);
+
         const usageHeader = document.createElement("div");
         usageHeader.textContent = "使用量";
         tableHeader.appendChild(usageHeader);
 
-        container.appendChild(tableHeader);
+        const progressHeader = document.createElement("div");
+        progressHeader.textContent = "进度";
+        tableHeader.appendChild(progressHeader);
 
-        // 仅作用于用量页：两列布局
-        if (!document.querySelector('style[data-monitor-usage-style="true"]')) {
-            const css = `
-      #usageContent .table-header,
-      #usageContent .model-row {
-        grid-template-columns: 1.6fr 1.4fr;
-      }
-    `;
-            const styleEl = document.createElement('style');
-            styleEl.setAttribute('data-monitor-usage-style', 'true');
-            styleEl.textContent = css;
-            document.head.appendChild(styleEl);
-        }
+        container.appendChild(tableHeader);
 
         // Calculate active counts for all models
         const now = Date.now();
@@ -2684,6 +2844,8 @@
                 // 显示所有存在于模型配置中的模型（不管是否在当前套餐中）
                 const modelData = modelCounts.find(({ key }) => key === modelKey);
                 if (!modelData) return false;
+                // 非 Pro 套餐隐藏 o3-pro（不计入使用列表与统计）
+                if (modelKey === 'o3-pro' && planType !== 'pro') return false;
                 
                 const { hasBeenUsed, isAvailable } = modelData;
                 return hasBeenUsed || isAvailable;
@@ -2730,7 +2892,7 @@
             divider.className = 'section-divider';
             container.appendChild(divider);
 
-            // 简化为两列：名称 / 剩余 + 重置时间
+            // 明细行（沿用 model-row 的栅格，字段：名称 / 最后使用 / 使用量 / 进度）
             const row = document.createElement('div');
             row.className = 'model-row';
 
@@ -2738,34 +2900,33 @@
             colName.textContent = 'DeepResearch';
             row.appendChild(colName);
 
-            const colInfo = document.createElement('div');
+            const colLast = document.createElement('div');
+            // DeepResearch 的接口不提供“最近使用时间”，留空
+            colLast.textContent = '';
+            row.appendChild(colLast);
+
+            const colRemain = document.createElement('div');
             const dr = usageData.deepResearch || {};
-            const remainText = `剩余: ${dr.remaining ?? '--'}`;
+            colRemain.textContent = (dr.remaining ?? '--').toString();
+            row.appendChild(colRemain);
 
-            const infoBox = document.createElement('div');
-            infoBox.textContent = remainText;
-
+            const colReset = document.createElement('div');
             // 兼容字符串/可解析时间
             if ((usageData.deepResearch || {}).resetAfter) {
-                const small = document.createElement('div');
-                small.style.color = COLORS.secondaryText;
-                small.style.fontSize = STYLE.textSize.xs;
                 try {
                     const d = new Date(usageData.deepResearch.resetAfter);
                     if (!isNaN(d.getTime())) {
-                        small.textContent = `重置: ${d.toLocaleString('zh-CN')}`;
+                        colReset.textContent = d.toLocaleString('zh-CN');
                     } else {
-                        small.textContent = `重置: ${String(usageData.deepResearch.resetAfter)}`;
+                        colReset.textContent = String(usageData.deepResearch.resetAfter);
                     }
                 } catch {
-                    small.textContent = `重置: ${String(usageData.deepResearch.resetAfter)}`;
+                    colReset.textContent = String(usageData.deepResearch.resetAfter);
                 }
-                colInfo.appendChild(infoBox);
-                colInfo.appendChild(small);
             } else {
-                colInfo.appendChild(infoBox);
+                colReset.textContent = '--';
             }
-            row.appendChild(colInfo);
+            row.appendChild(colReset);
 
             container.appendChild(row);
         } catch (e) {
@@ -2844,22 +3005,30 @@
         addBtn.textContent = "添加模型映射";
         addBtn.style.marginTop = "20px";
         addBtn.addEventListener("click", () => {
-            const newModelID = prompt('输入新模型的内部ID（例如："o3-mini"）');
+            const rawId = prompt('输入新模型的内部ID（例如："o3-mini"）');
+            const newModelID = rawId ? rawId.trim() : "";
             if (!newModelID) return;
 
-            if (usageData.models[newModelID]) {
+            let added = false;
+            updateUsageData(data => {
+                if (data.models[newModelID]) {
+                    return;
+                }
+                data.models[newModelID] = {
+                    requests: [],
+                    quota: 50,
+                    windowType: "daily"
+                };
+                added = true;
+            });
+
+            if (!added) {
                 alert("模型映射已存在。");
                 return;
             }
 
-            usageData.models[newModelID] = {
-                requests: [],
-                quota: 50,
-                windowType: "daily"
-            };
-
-            Storage.set(usageData);
             updateUI();
+            showToast(`模型 ${newModelID} 已添加。`, "success");
         });
         container.appendChild(addBtn);
 
@@ -2872,30 +3041,31 @@
             const inputs = container.querySelectorAll("input, select");
             let hasChanges = false;
 
-            inputs.forEach((input) => {
-                if (input.disabled) return; // skip shared-group controlled fields
-                const modelKey = input.dataset.modelKey;
-                const field = input.dataset.field;
+            updateUsageData(data => {
+                inputs.forEach((input) => {
+                    if (input.disabled) return; // skip shared-group controlled fields
+                    const modelKey = input.dataset.modelKey;
+                    const field = input.dataset.field;
 
-                if (!modelKey || !usageData.models[modelKey]) return;
+                    if (!modelKey || !data.models[modelKey]) return;
 
-                if (field === "quota") {
-                    const newQuota = parseInt(input.value, 10);
-                    if (!isNaN(newQuota) && newQuota !== usageData.models[modelKey].quota) {
-                        usageData.models[modelKey].quota = newQuota;
-                        hasChanges = true;
+                    if (field === "quota") {
+                        const newQuota = parseInt(input.value, 10);
+                        if (!isNaN(newQuota) && newQuota !== data.models[modelKey].quota) {
+                            data.models[modelKey].quota = newQuota;
+                            hasChanges = true;
+                        }
+                    } else if (field === "windowType") {
+                        const newWindowType = input.value;
+                        if (newWindowType && newWindowType !== data.models[modelKey].windowType) {
+                            data.models[modelKey].windowType = newWindowType;
+                            hasChanges = true;
+                        }
                     }
-                } else if (field === "windowType") {
-                    const newWindowType = input.value;
-                    if (newWindowType && newWindowType !== usageData.models[modelKey].windowType) {
-                        usageData.models[modelKey].windowType = newWindowType;
-                        hasChanges = true;
-                    }
-                }
+                });
             });
 
             if (hasChanges) {
-                Storage.set(usageData);
                 updateUI();
                 showToast("设置保存成功。");
             } else {
@@ -2910,20 +3080,24 @@
         clearBtn.textContent = "清除历史";
         clearBtn.style.marginLeft = STYLE.spacing.sm;
         clearBtn.addEventListener("click", () => {
-            if (confirm("确定要清除所有模型的使用历史吗？")) {
-                Object.values(usageData.models).forEach(model => {
+            if (!confirm("确定要清除所有模型的使用历史吗？")) {
+                return;
+            }
+
+            updateUsageData(data => {
+                Object.values(data.models).forEach(model => {
                     if (Array.isArray(model.requests)) model.requests = [];
                 });
                 // 同时清空共用额度组的记录
-                if (usageData.sharedQuotaGroups && typeof usageData.sharedQuotaGroups === 'object') {
-                    Object.values(usageData.sharedQuotaGroups).forEach(group => {
+                if (data.sharedQuotaGroups && typeof data.sharedQuotaGroups === 'object') {
+                    Object.values(data.sharedQuotaGroups).forEach(group => {
                         if (Array.isArray(group.requests)) group.requests = [];
                     });
                 }
-                Storage.set(usageData);
-                updateUI();
-                showToast("所有模型的使用历史已清除。");
-            }
+            });
+
+            updateUI();
+            showToast("所有模型的使用历史已清除。");
         });
         container.appendChild(clearBtn);
 
@@ -2935,7 +3109,7 @@
         resetQuotaBtn.style.color = COLORS.warning;
         resetQuotaBtn.addEventListener("click", () => {
             if (confirm("确定要恢复当前套餐的默认配额设置吗？\n\n这将重置所有模型的配额和时间窗口，但保留使用历史。")) {
-                const currentPlan = usageData.planType || "team";
+                const currentPlan = refreshUsageData().planType || "team";
                 applyPlanConfig(currentPlan);
                 updateUI();
                 showToast(`已恢复 ${PLAN_CONFIGS[currentPlan].name} 套餐的默认配额设置`, "success");
@@ -2952,7 +3126,8 @@
         resetAllBtn.addEventListener("click", () => {
             if (confirm("警告：这将重置所有内容为默认值，包括所有模型配置。确定继续吗？")) {
                 // 先写入默认数据
-                Storage.set(defaultUsageData);
+                const freshDefaults = JSON.parse(JSON.stringify(defaultUsageData));
+                Storage.set(freshDefaults);
                 // 重新读取，确保引用的是存储中的对象
                 usageData = Storage.get();
                 // 按默认套餐（默认为 team）应用完整的套餐模型与配额配置
@@ -3046,7 +3221,7 @@
         planTitle.textContent = "套餐设置";
         planTitle.style.fontWeight = "bold";
         planTitle.style.marginBottom = "8px";
-        planTitle.style.color = COLORS.white;
+        planTitle.style.color = COLORS.text;
         planSelectorContainer.appendChild(planTitle);
 
         // 套餐选择器
@@ -3064,7 +3239,7 @@
         const planTypeSelect = document.createElement("select");
         planTypeSelect.style.width = "140px";
         planTypeSelect.style.backgroundColor = COLORS.background;
-        planTypeSelect.style.color = COLORS.white;
+        planTypeSelect.style.color = COLORS.text;
         planTypeSelect.style.border = `1px solid ${COLORS.border}`;
         planTypeSelect.style.borderRadius = "4px";
         planTypeSelect.style.padding = "4px 8px";
@@ -3080,16 +3255,21 @@
         planTypeSelect.value = usageData.planType || "team";
         planTypeSelect.addEventListener('change', () => {
             const newPlan = planTypeSelect.value;
-            if (confirm(`确定要切换到 ${PLAN_CONFIGS[newPlan].name} 套餐吗？\n\n这将更新所有模型的配额和时间窗口设置。`)) {
-                usageData.planType = newPlan;
-                applyPlanConfig(newPlan);
-                // 完全重新渲染所有内容
-                updateUI();
-                showToast(`已切换到 ${PLAN_CONFIGS[newPlan].name} 套餐`, "success");
-            } else {
-                // 用户取消，恢复原选择
-                planTypeSelect.value = usageData.planType || "team";
+            const currentPlan = refreshUsageData().planType || "team";
+
+            if (!confirm(`确定要切换到 ${PLAN_CONFIGS[newPlan].name} 套餐吗？\n\n这将更新所有模型的配额和时间窗口设置。`)) {
+                planTypeSelect.value = currentPlan;
+                return;
             }
+
+            updateUsageData(data => {
+                data.planType = newPlan;
+            });
+
+            applyPlanConfig(newPlan);
+            // 完全重新渲染所有内容
+            updateUI();
+            showToast(`已切换到 ${PLAN_CONFIGS[newPlan].name} 套餐`, "success");
         });
 
         planSelectContainer.appendChild(planTypeSelect);
@@ -3190,7 +3370,7 @@
         optionsTitle.textContent = "界面设置";
         optionsTitle.style.fontWeight = "bold";
         optionsTitle.style.marginBottom = "8px";
-        optionsTitle.style.color = COLORS.white;
+        optionsTitle.style.color = COLORS.text;
         optionsContainer.appendChild(optionsTitle);
 
         // Progress type selector
@@ -3208,7 +3388,7 @@
         const progressTypeSelect = document.createElement("select");
         progressTypeSelect.style.width = "100px"; // 限制宽度
         progressTypeSelect.style.backgroundColor = COLORS.background;
-        progressTypeSelect.style.color = COLORS.white;
+        progressTypeSelect.style.color = COLORS.text;
         progressTypeSelect.style.border = `1px solid ${COLORS.border}`;
         progressTypeSelect.style.borderRadius = "4px";
         progressTypeSelect.style.padding = "3px 6px";
@@ -3219,10 +3399,12 @@
         `;
         progressTypeSelect.value = usageData.progressType || "bar";
         progressTypeSelect.addEventListener('change', () => {
-            usageData.progressType = progressTypeSelect.value;
-            Storage.set(usageData);
+            const newProgressType = progressTypeSelect.value;
+            updateUsageData(data => {
+                data.progressType = newProgressType;
+            });
             updateUI();
-            console.debug('[monitor] progress type:', progressTypeSelect.value);
+            console.debug('[monitor] progress type:', newProgressType);
         });
 
         progressSelectContainer.appendChild(progressTypeSelect);
@@ -3273,15 +3455,18 @@
         // 点击事件处理
         checkboxWrapper.addEventListener('click', () => {
             showResetTimeCheckbox.checked = !showResetTimeCheckbox.checked;
-            usageData.showWindowResetTime = showResetTimeCheckbox.checked;
+            const checked = showResetTimeCheckbox.checked;
+
+            updateUsageData(data => {
+                data.showWindowResetTime = checked;
+            });
 
             // 更新开关样式
-            checkboxWrapper.style.backgroundColor = showResetTimeCheckbox.checked ? COLORS.success : COLORS.disabled;
-            slider.style.left = showResetTimeCheckbox.checked ? "22px" : "2px";
+            checkboxWrapper.style.backgroundColor = checked ? COLORS.success : COLORS.disabled;
+            slider.style.left = checked ? "22px" : "2px";
 
-            Storage.set(usageData);
             updateUI();
-            console.debug('[monitor] show reset time:', showResetTimeCheckbox.checked);
+            console.debug('[monitor] show reset time:', checked);
         });
 
         // 标签点击也能切换开关
@@ -3297,7 +3482,7 @@
         container.appendChild(optionsContainer);
     }
 
-    // GPT-5 waiting tracker for thinking mode detection
+    // GPT-5/5-1 waiting tracker for thinking mode detection
     let gpt5WaitingTimer = null;
     let isWaitingForGPT5Response = false;
     
@@ -3353,19 +3538,28 @@
             recordModelUsageByModelId('gpt-5');
             return;
         }
+        // gpt-5-1-instant directly adds to gpt-5-1 (instant means no thinking)
+        if (effectiveModelId === "gpt-5-1-instant") {
+            console.log('[monitor] gpt-5-1-instant detected, directly adding to gpt-5-1');
+            recordModelUsageByModelId('gpt-5-1');
+            return;
+        }
         
-        // Only GPT-5 needs thinking detection
+        // Only GPT-5 series needs thinking detection
         if (effectiveModelId === "gpt-5") {
             console.log('[monitor] Starting GPT-5 thinking detection timer...');
-            startGPT5ThinkingTimer();
+            startGPT5ThinkingTimer('gpt-5');
+        } else if (effectiveModelId === "gpt-5-1") {
+            console.log('[monitor] Starting GPT-5-1 thinking detection timer...');
+            startGPT5ThinkingTimer('gpt-5-1');
         } else {
             // For all other models, record immediately as themselves
             recordModelUsageByModelId(effectiveModelId);
         }
     }
     
-    // Start timer to detect GPT-5 thinking mode
-    function startGPT5ThinkingTimer() {
+    // Start timer to detect GPT-5/GPT-5-1 thinking mode
+    function startGPT5ThinkingTimer(baseModelKey = 'gpt-5') {
         // Clear any existing timer
         if (gpt5WaitingTimer) {
             clearInterval(gpt5WaitingTimer);
@@ -3381,12 +3575,12 @@
             attempts++;
             
             // First, check if we have a direct response (this takes priority)
-            const hasDirectResponse = checkForDirectResponse();
+            const hasDirectResponse = checkForDirectResponse(baseModelKey);
             
             if (hasDirectResponse && !hasDetectedResponse) {
                 // Direct response detected - count as gpt-5 (normal mode)
                 console.log('[monitor] Direct response detected after', attempts * 300, 'ms');
-                recordModelUsageByModelId('gpt-5');
+                recordModelUsageByModelId(baseModelKey);
                 clearInterval(gpt5WaitingTimer);
                 isWaitingForGPT5Response = false;
                 hasDetectedResponse = true;
@@ -3401,7 +3595,8 @@
                 if (hasThinkingIndicator && !hasDetectedResponse) {
                     // Thinking mode detected - count as gpt-5-thinking
                     console.log('[monitor] Thinking mode detected after', Date.now() - startTime, 'ms');
-                    recordModelUsageByModelId('gpt-5-thinking');
+                    const thinkingKey = baseModelKey === 'gpt-5' ? 'gpt-5-thinking' : (baseModelKey + '-thinking');
+                    recordModelUsageByModelId(thinkingKey);
                     clearInterval(gpt5WaitingTimer);
                     isWaitingForGPT5Response = false;
                     hasDetectedResponse = true;
@@ -3412,7 +3607,7 @@
             // Timeout - assume it's normal mode
             if (attempts >= maxAttempts && !hasDetectedResponse) {
                 console.log('[monitor] Timeout reached, assuming normal mode');
-                recordModelUsageByModelId('gpt-5');
+                recordModelUsageByModelId(baseModelKey);
                 clearInterval(gpt5WaitingTimer);
                 isWaitingForGPT5Response = false;
                 hasDetectedResponse = true;
@@ -3456,9 +3651,17 @@
     }
     
     // —— 用结构+稳定态判定直接回复（替换原来的长度阈值方法）
-    function checkForDirectResponse() {
-        // 只看最新一条 GPT-5 助手消息
-        const candidates = [...document.querySelectorAll('[data-message-author-role="assistant"][data-message-model-slug="gpt-5"]')];
+    function checkForDirectResponse(baseModelKey = 'gpt-5') {
+        // 只看最新一条 GPT-5/GPT-5-1 助手消息
+        let candidates = [];
+        if (baseModelKey === 'gpt-5-1') {
+            candidates = [
+                ...document.querySelectorAll('[data-message-author-role="assistant"][data-message-model-slug="gpt-5-1"]'),
+                ...document.querySelectorAll('[data-message-author-role="assistant"][data-message-model-slug="gpt-5.1"]')
+            ];
+        } else {
+            candidates = [...document.querySelectorAll('[data-message-author-role="assistant"][data-message-model-slug="gpt-5"]')];
+        }
         if (!candidates.length) return false;
         const msg = candidates[candidates.length - 1];
 
@@ -3704,6 +3907,7 @@
     }
 
     // Improved draggable functionality that supports both vertical and horizontal movement
+    //（采用你提供的 3.7 版本方案）
     function setupDraggable(element) {
         let isDragging = false;
         let startX, startY, origLeft, origTop;
@@ -3851,7 +4055,7 @@
                             data.minimized = false;
                         });
                     } else {
-                        // 最小化监视器（仅样式变化，不动态文案）
+                        // 最小化监视器
                         monitor.classList.add('minimized');
 
                         // 更新状态
@@ -4154,7 +4358,6 @@
             setTimeout(initialize, 300);
             return;
         }
-        cleanupExpiredRequests();
 
         // 确保套餐配置是最新的
         const currentPlan = usageData.planType || "team";
@@ -4170,22 +4373,25 @@
 
             // 新增：确保当前套餐中的新模型会被自动添加（即使配额未变化）
             let addedModels = 0;
-            Object.entries(planConfig.models).forEach(([modelKey, cfg]) => {
-                if (!usageData.models[modelKey]) {
-                    usageData.models[modelKey] = {
-                        requests: [],
-                        quota: cfg.quota,
-                        windowType: cfg.windowType
-                    };
-                    addedModels++;
-                    console.log(`[monitor] Added missing plan model "${modelKey}" for ${planConfig.name} plan`);
-                }
+            updateUsageData(data => {
+                Object.entries(planConfig.models).forEach(([modelKey, cfg]) => {
+                    if (!data.models[modelKey]) {
+                        data.models[modelKey] = {
+                            requests: [],
+                            quota: cfg.quota,
+                            windowType: cfg.windowType
+                        };
+                        addedModels++;
+                        console.log(`[monitor] Added missing plan model "${modelKey}" for ${planConfig.name} plan`);
+                    }
+                });
             });
             if (addedModels > 0) {
-                Storage.set(usageData);
+                console.log(`[monitor] Added ${addedModels} missing models for ${planConfig.name} plan during init`);
             }
         }
 
+        cleanupExpiredRequests();
         createMonitorUI();
         setupKeyboardShortcuts(); // 添加快捷键支持
     }
@@ -4225,4 +4431,5 @@
     scheduleInitialize(300);
 
     console.log("🚀 ChatGPT Usage Monitor loaded");
+    // v3.8.4
 })();
