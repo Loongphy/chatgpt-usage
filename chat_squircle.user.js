@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Chat Squircle Input
+// @name         Chat Squircle
 // @namespace    https://loongphy.com
 // @version      1.0
 // @description  Adds corner-shape: squircle to chat input boxes on ChatGPT, Gemini, Grok, and AI Studio
