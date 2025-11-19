@@ -4,6 +4,33 @@
 
 ## 脚本汇总
 
+### 平滑圆角输入框 [chat_squircle.user.js](./chat_squircle.user.js)
+- **功能描述**: 为 ChatGPT, Gemini, Grok, AI Studio 等 AI 聊天平台的输入框引入 `corner-shape: squircle` CSS 特性。相比标准的 `border-radius`，它提供了数学上更连续、视觉上更平滑的“超椭圆”圆角（类似 iOS 图标风格）。
+- **注意**: 需要浏览器支持实验性 CSS 属性（可能需在 `chrome://flags` 中开启 `Experimental Web Platform features`）。
+
+<table>
+  <tr>
+    <td align="center">
+      <b>ChatGPT</b><br>
+      <img src="./images/chatgpt_input.png" width="100%" alt="ChatGPT Squircle Input">
+    </td>
+    <td align="center">
+      <b>Google Gemini</b><br>
+      <img src="./images/gemini_input.png" width="100%" alt="Gemini Squircle Input">
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <b>Grok</b><br>
+      <img src="./images/grok_input.png" width="100%" alt="Grok Squircle Input">
+    </td>
+    <td align="center">
+      <b>Google AI Studio</b><br>
+      <img src="./images/aistudio_input.png" width="100%" alt="AI Studio Squircle Input">
+    </td>
+  </tr>
+</table>
+
 ### 聊天导航 [chat-navigation.js](./chat-navigation.js)
 - **功能描述**: 罗列每个用户、ChatGPT对话，显示在悬浮栏中，方便切换每个对话。
 - **更新建议**: 使用当前项目版本
