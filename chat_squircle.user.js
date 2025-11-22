@@ -33,6 +33,12 @@
             parentDepth: 0
         },
         {
+            domain: 'chatgpt.com',
+            selector: '.divide-token-border-default',
+            targetParent: false,
+            parentDepth: 0
+        },
+        {
             domain: 'gemini.google.com',
             selector: '.ql-editor',
             targetParent: true,
