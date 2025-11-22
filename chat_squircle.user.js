@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         Chat Squircle
 // @namespace    https://loongphy.com
-// @version      1.0
+// @version      1.1
 // @description  Adds corner-shape: squircle to chat input boxes on ChatGPT, Gemini, Grok, and AI Studio
 // @author       loongphy
 // @match        https://chatgpt.com/*
 // @match        https://gemini.google.com/*
 // @match        https://grok.com/*
 // @match        https://aistudio.google.com/*
-// @grant        GM_addStyle
+// @grant        none
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -19,28 +19,38 @@
         corner-shape: squircle;
     `;
 
-    const CONFIG = {
-        'chatgpt.com': {
+    const CONFIG = [
+        {
+            domain: 'chatgpt.com',
             selector: '#prompt-textarea',
             targetParent: true,
             parentDepth: 3
         },
-        'gemini.google.com': {
+        {
+            domain: 'chatgpt.com',
+            selector: '.user-message-bubble-color',
+            targetParent: false,
+            parentDepth: 0
+        },
+        {
+            domain: 'gemini.google.com',
             selector: '.ql-editor',
             targetParent: true,
             parentDepth: 7
         },
-        'grok.com': {
+        {
+            domain: 'grok.com',
             selector: '[contenteditable="true"]',
             targetParent: true,
             parentDepth: 4
         },
-        'aistudio.google.com': {
+        {
+            domain: 'aistudio.google.com',
             selector: '.prompt-input-wrapper',
             targetParent: false, 
             parentDepth: 0
         }
-    };
+    ];
 
     function getDomain() {
         return window.location.hostname;
@@ -48,32 +58,33 @@
 
     function applySquircle() {
         const domain = getDomain();
-        // Find the config that matches the current domain (handling subdomains)
-        const configKey = Object.keys(CONFIG).find(key => domain.includes(key));
+        // Find all configs that match the current domain
+        const activeConfigs = CONFIG.filter(config => domain.includes(config.domain));
         
-        if (!configKey) return;
+        if (activeConfigs.length === 0) return;
         
-        const config = CONFIG[configKey];
-        const elements = document.querySelectorAll(config.selector);
+        activeConfigs.forEach(config => {
+            const elements = document.querySelectorAll(config.selector);
 
-        elements.forEach(el => {
-            let target = el;
-            
-            if (config.targetParent) {
-                // Traverse up to find the container that likely has the border
-                // This is heuristic: look for a div with a border or background
-                let parent = el.parentElement;
-                for(let i=0; i<config.parentDepth && parent; i++) {
-                     target = parent;
-                     parent = parent.parentElement;
+            elements.forEach(el => {
+                let target = el;
+                
+                if (config.targetParent) {
+                    // Traverse up to find the container that likely has the border
+                    // This is heuristic: look for a div with a border or background
+                    let parent = el.parentElement;
+                    for(let i=0; i<config.parentDepth && parent; i++) {
+                         target = parent;
+                         parent = parent.parentElement;
+                    }
                 }
-            }
 
-            // Apply the style directly to the target element
-            if (!target.dataset.squircleApplied) {
-                target.style.cssText += SQUIRCLE_CSS;
-                target.dataset.squircleApplied = "true";
-            }
+                // Apply the style directly to the target element
+                if (!target.dataset.squircleApplied) {
+                    target.style.cssText += SQUIRCLE_CSS;
+                    target.dataset.squircleApplied = "true";
+                }
+            });
         });
     }
 
