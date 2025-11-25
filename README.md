@@ -31,6 +31,11 @@
   </tr>
 </table>
 
+### Gemini 增强 [gemini.user.js](./gemini.user.js)
+- **功能描述**: 为 Gemini 添加便捷功能：在 Logo 旁添加"新标签页打开"按钮，同时为输入框应用 squircle 平滑圆角样式。
+
+<img src="./images/gemini.png" alt="Gemini Enhancement">
+
 ### 聊天导航 [chat-navigation.js](./chat-navigation.js)
 - **功能描述**: 罗列每个用户、ChatGPT对话，显示在悬浮栏中，方便切换每个对话。
 - **更新建议**: 使用当前项目版本
