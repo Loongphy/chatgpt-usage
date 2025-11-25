@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Enhancement
 // @namespace    https://loongphy.com
-// @version      1.0
+// @version      1.1
 // @description  Adds a button to open new Gemini tab and squircle input
 // @author       loongphy
 // @match        https://gemini.google.com/*
