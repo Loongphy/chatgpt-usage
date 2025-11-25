@@ -32,6 +32,7 @@
             transition: background-color 0.2s ease;
             z-index: 1000;
             visibility: hidden;
+            color: #444746;
         }
         .gemini-new-tab-btn.visible {
             visibility: visible;
@@ -45,7 +46,18 @@
         .gemini-new-tab-btn svg {
             width: 18px;
             height: 18px;
-            fill: #444746;
+            fill: currentColor;
+        }
+        @media (prefers-color-scheme: dark) {
+            .gemini-new-tab-btn {
+                color: #E8EAED;
+            }
+            .gemini-new-tab-btn:hover {
+                background-color: rgba(232, 234, 237, 0.18);
+            }
+            .gemini-new-tab-btn:active {
+                background-color: rgba(232, 234, 237, 0.26);
+            }
         }
     `;
 
