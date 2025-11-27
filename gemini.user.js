@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Enhancement
 // @namespace    https://loongphy.com
-// @version      1.1
+// @version      1.2
 // @description  Adds a button to open new Gemini tab and squircle input
 // @author       loongphy
 // @match        https://gemini.google.com/*
@@ -19,23 +19,21 @@
 
         /* New tab button - positioned next to Gemini logo */
         .gemini-new-tab-btn {
-            position: fixed;
             width: 32px;
             height: 32px;
             border-radius: 50%;
             background: transparent;
             border: none;
             cursor: pointer;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
             transition: background-color 0.2s ease;
-            z-index: 1000;
-            visibility: hidden;
             color: #444746;
-        }
-        .gemini-new-tab-btn.visible {
-            visibility: visible;
+            margin-left: 6px;
+            flex-shrink: 0;
+            vertical-align: middle;
+            align-self: center;
         }
         .gemini-new-tab-btn:hover {
             background-color: rgba(68, 71, 70, 0.08);
@@ -84,32 +82,24 @@
             window.open('https://gemini.google.com/app', '_blank');
         });
 
-        // Position button dynamically next to Gemini text
-        function positionButton() {
+        // Mount button after Gemini text
+        function mountButton() {
             const geminiText = document.querySelector('.bard-text');
-            if (geminiText) {
-                const rect = geminiText.getBoundingClientRect();
-                // Only position if element has valid dimensions
-                if (rect.width > 0 && rect.left > 0) {
-                    button.style.top = (rect.top + (rect.height - 32) / 2) + 'px';
-                    button.style.left = (rect.right + 2) + 'px';
-                    button.classList.add('visible');
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        // Wait for element to be properly positioned
-        function waitAndPosition() {
-            if (!positionButton()) {
-                requestAnimationFrame(waitAndPosition);
+            if (geminiText && geminiText.parentNode) {
+                // Prevent duplicate insertion or unnecessary moves
+                if (geminiText.nextSibling === button) return;
+                
+                geminiText.parentNode.insertBefore(button, geminiText.nextSibling);
             }
         }
 
-        document.body.appendChild(button);
-        waitAndPosition();
-        window.addEventListener('resize', positionButton);
+        // Observe DOM changes to handle SPA navigation and dynamic rendering
+        const observer = new MutationObserver(() => {
+            mountButton();
+        });
+        
+        observer.observe(document.body, { childList: true, subtree: true });
+        mountButton();
     }
 
     // ==================== Initialize ====================
