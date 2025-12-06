@@ -12,6 +12,10 @@
 (function() {
     'use strict';
 
+    // Keep a stable opener reference and the target URL we always want to open
+    const nativeOpen = window.open.bind(window);
+    const TARGET_URL = 'https://gemini.google.com/app';
+
     // ==================== Styles ====================
     const STYLES = `
         /* Squircle for input box */
@@ -69,6 +73,7 @@
         const button = document.createElement('button');
         button.className = 'gemini-new-tab-btn';
         button.title = 'Open Gemini in New Tab';
+        button.type = 'button';
         
         // SVG icon (open in new tab) using DOM APIs
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -78,9 +83,28 @@
         svg.appendChild(path);
         button.appendChild(svg);
 
-        button.addEventListener('click', () => {
-            window.open('https://gemini.google.com/app', '_blank');
-        });
+        // Always open the Gemini home/app entry, prevent parent handlers from hijacking
+        const openTarget = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+
+            const newTab = nativeOpen(TARGET_URL, '_blank', 'noopener,noreferrer');
+            if (newTab) return;
+
+            // Fallback if popups are blocked
+            const anchorEl = document.createElement('a');
+            anchorEl.href = TARGET_URL;
+            anchorEl.target = '_blank';
+            anchorEl.rel = 'noopener noreferrer';
+            document.body.appendChild(anchorEl);
+            anchorEl.click();
+            anchorEl.remove();
+        };
+
+        // Capture + bubble to beat site handlers
+        button.addEventListener('click', openTarget, true);
+        button.addEventListener('click', openTarget);
 
         // Mount button after Gemini text
         function mountButton() {
