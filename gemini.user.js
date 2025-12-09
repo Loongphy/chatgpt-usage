@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         Gemini Enhancement
 // @namespace    https://loongphy.com
-// @version      1.3
+// @version      1.4
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
 // @description  Adds a button to open new Gemini tab and squircle input
 // @author       loongphy
 // @match        https://gemini.google.com/*
-// @grant        none
+// @grant        GM_registerMenuCommand
+// @grant        GM_unregisterMenuCommand
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -15,6 +17,8 @@
     // Keep a stable opener reference and the target URL we always want to open
     const nativeOpen = window.open.bind(window);
     const TARGET_URL = 'https://gemini.google.com/app';
+    const WIDESCREEN_STORAGE_KEY = 'gemini-wide-enabled';
+    const DEFAULT_WIDE_ENABLED = true;
 
     // ==================== Styles ====================
     const STYLES = `
@@ -63,10 +67,85 @@
         }
     `;
 
+    // Smallest width constraint for content is set on .conversation-container (760px);
+    // we widen that only to avoid touching the input box layout.
+    const WIDESCREEN_STYLES = `
+        :root {
+            --gemini-wide-gap: clamp(8px, 4vw, 64px);
+        }
+
+        body.gemini-wide .conversation-container {
+            max-width: none !important;
+            width: auto !important;
+            margin-inline: var(--gemini-wide-gap) !important;
+        }
+
+        body.gemini-wide .conversation-container > *,
+        body.gemini-wide user-query,
+        body.gemini-wide model-response,
+        body.gemini-wide .user-query-bubble-with-background {
+            max-width: none !important;
+            width: auto !important;
+        }
+
+        body.gemini-wide .chat-history-scroll-container,
+        body.gemini-wide .chat-history {
+            padding-inline: var(--gemini-wide-gap) !important;
+            box-sizing: border-box;
+        }
+    `;
+
     function injectStyles() {
         const styleEl = document.createElement('style');
         styleEl.textContent = STYLES;
         document.head.appendChild(styleEl);
+    }
+
+    function setupWideScreenToggle() {
+        const wideStyleEl = document.createElement('style');
+
+        const readWidePref = () => {
+            try {
+                const saved = localStorage.getItem(WIDESCREEN_STORAGE_KEY);
+                if (saved === null) return DEFAULT_WIDE_ENABLED;
+                return saved === 'true';
+            } catch {
+                return DEFAULT_WIDE_ENABLED;
+            }
+        };
+
+        const writeWidePref = (enabled) => {
+            try {
+                localStorage.setItem(WIDESCREEN_STORAGE_KEY, enabled ? 'true' : 'false');
+            } catch {
+                /* ignore persistence errors */
+            }
+        };
+
+        const applyWideStyles = (enabled) => {
+            document.body.classList.toggle('gemini-wide', enabled);
+            wideStyleEl.textContent = enabled ? WIDESCREEN_STYLES : '';
+        };
+
+        document.head.appendChild(wideStyleEl);
+
+        let wideEnabled = readWidePref();
+        applyWideStyles(wideEnabled);
+
+        const registerMenu = () => {
+            if (typeof GM_registerMenuCommand !== 'function') return;
+            if (typeof GM_unregisterMenuCommand === 'function' && registerMenu.menuId) {
+                GM_unregisterMenuCommand(registerMenu.menuId);
+            }
+            registerMenu.menuId = GM_registerMenuCommand(`宽屏显示：${wideEnabled ? '开' : '关'}`, () => {
+                wideEnabled = !wideEnabled;
+                writeWidePref(wideEnabled);
+                applyWideStyles(wideEnabled);
+                registerMenu();
+            });
+        };
+
+        registerMenu();
     }
 
     function createNewTabButton() {
@@ -129,6 +208,7 @@
     // ==================== Initialize ====================
     function init() {
         injectStyles();
+        setupWideScreenToggle();
         createNewTabButton();
     }
 
