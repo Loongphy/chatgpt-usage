@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Enhancement
 // @namespace    https://loongphy.com
-// @version      1.4
+// @version      1.4.1
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
 // @description  Adds a button to open new Gemini tab and squircle input
 // @author       loongphy
@@ -71,27 +71,18 @@
     // we widen that only to avoid touching the input box layout.
     const WIDESCREEN_STYLES = `
         :root {
-            --gemini-wide-gap: clamp(8px, 4vw, 64px);
+            --gemini-wide-message-max-width: 1120px;
         }
 
-        body.gemini-wide .conversation-container {
-            max-width: none !important;
-            width: auto !important;
-            margin-inline: var(--gemini-wide-gap) !important;
+        body.gemini-wide main .conversation-container {
+            max-width: var(--gemini-wide-message-max-width) !important;
+            width: min(100%, var(--gemini-wide-message-max-width)) !important;
         }
 
-        body.gemini-wide .conversation-container > *,
-        body.gemini-wide user-query,
-        body.gemini-wide model-response,
-        body.gemini-wide .user-query-bubble-with-background {
-            max-width: none !important;
-            width: auto !important;
-        }
-
-        body.gemini-wide .chat-history-scroll-container,
-        body.gemini-wide .chat-history {
-            padding-inline: var(--gemini-wide-gap) !important;
-            box-sizing: border-box;
+        body.gemini-wide main user-query,
+        body.gemini-wide main model-response {
+            max-width: 100% !important;
+            width: 100% !important;
         }
     `;
 
