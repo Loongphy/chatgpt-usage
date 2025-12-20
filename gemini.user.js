@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Enhancement
 // @namespace    https://loongphy.com
-// @version      1.4.1
+// @version      1.5.0
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
 // @description  Adds a button to open new Gemini tab and squircle input
 // @author       loongphy
@@ -19,6 +19,8 @@
     const TARGET_URL = 'https://gemini.google.com/app';
     const WIDESCREEN_STORAGE_KEY = 'gemini-wide-enabled';
     const DEFAULT_WIDE_ENABLED = true;
+    const THOUGHT_ITALIC_STORAGE_KEY = 'gemini-thought-italic-enabled';
+    const DEFAULT_THOUGHT_ITALIC_ENABLED = true; // true = keep site default italic
 
     // ==================== Styles ====================
     const STYLES = `
@@ -86,6 +88,12 @@
         }
     `;
 
+    const THOUGHT_ITALIC_RESET_STYLES = `
+        model-thoughts message-content {
+            font-style: normal !important;
+        }
+    `;
+
     function injectStyles() {
         const styleEl = document.createElement('style');
         styleEl.textContent = STYLES;
@@ -132,6 +140,52 @@
                 wideEnabled = !wideEnabled;
                 writeWidePref(wideEnabled);
                 applyWideStyles(wideEnabled);
+                registerMenu();
+            });
+        };
+
+        registerMenu();
+    }
+
+    function setupThoughtItalicToggle() {
+        const italicStyleEl = document.createElement('style');
+
+        const readItalicPref = () => {
+            try {
+                const saved = localStorage.getItem(THOUGHT_ITALIC_STORAGE_KEY);
+                if (saved === null) return DEFAULT_THOUGHT_ITALIC_ENABLED;
+                return saved === 'true';
+            } catch {
+                return DEFAULT_THOUGHT_ITALIC_ENABLED;
+            }
+        };
+
+        const writeItalicPref = (enabled) => {
+            try {
+                localStorage.setItem(THOUGHT_ITALIC_STORAGE_KEY, enabled ? 'true' : 'false');
+            } catch {
+                /* ignore persistence errors */
+            }
+        };
+
+        const applyItalicStyles = (enabled) => {
+            italicStyleEl.textContent = enabled ? '' : THOUGHT_ITALIC_RESET_STYLES;
+        };
+
+        document.head.appendChild(italicStyleEl);
+
+        let italicEnabled = readItalicPref();
+        applyItalicStyles(italicEnabled);
+
+        const registerMenu = () => {
+            if (typeof GM_registerMenuCommand !== 'function') return;
+            if (typeof GM_unregisterMenuCommand === 'function' && registerMenu.menuId) {
+                GM_unregisterMenuCommand(registerMenu.menuId);
+            }
+            registerMenu.menuId = GM_registerMenuCommand(`思维链斜体：${italicEnabled ? '开' : '关'}`, () => {
+                italicEnabled = !italicEnabled;
+                writeItalicPref(italicEnabled);
+                applyItalicStyles(italicEnabled);
                 registerMenu();
             });
         };
@@ -200,6 +254,7 @@
     function init() {
         injectStyles();
         setupWideScreenToggle();
+        setupThoughtItalicToggle();
         createNewTabButton();
     }
 
