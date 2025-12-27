@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Gemini Enhancement
 // @namespace    https://loongphy.com
-// @version      1.5.0
+// @version      1.6.0
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
-// @description  Adds a button to open new Gemini tab and squircle input
+// @description  Adds new-tab button, squircle input, and ChatGPT-style text quoting
 // @author       loongphy
 // @match        https://gemini.google.com/*
 // @grant        GM_registerMenuCommand
@@ -26,6 +26,61 @@
     const STYLES = `
         /* Squircle for input box */
         input-area-v2 { corner-shape: squircle; }
+
+        .gemini-quote-tip {
+            position: absolute;
+            z-index: 2147483647;
+            padding: 6px 12px;
+            border-radius: 999px;
+            corner-shape: squircle;
+            border: none;
+            background: #3f4147;
+            color: #f7f8f8;
+            font-size: 13px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(4px) scale(0.97);
+            transition: opacity 0.18s ease, transform 0.18s ease;
+            white-space: nowrap;
+        }
+
+        .gemini-quote-tip.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0) scale(1);
+        }
+
+        .gemini-quote-tip .gemini-quote-tip-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+        }
+
+        .gemini-quote-tip .gemini-quote-tip-icon svg {
+            width: 100%;
+            height: 100%;
+            fill: currentColor;
+            display: block;
+        }
+
+        .gemini-quote-tip:focus-visible {
+            outline: 2px solid #a0c4ff;
+            outline-offset: 2px;
+        }
+
+        @media (prefers-color-scheme: light) {
+            .gemini-quote-tip {
+                background: #f5f6f8;
+                color: #1f1f1f;
+            }
+        }
 
         /* New tab button - positioned next to Gemini logo */
         .gemini-new-tab-btn {
@@ -193,6 +248,159 @@
         registerMenu();
     }
 
+    function setupQuoteSelectionFeature() {
+        if (document.querySelector('.gemini-quote-tip')) return;
+
+        const tip = document.createElement('button');
+        tip.type = 'button';
+        tip.className = 'gemini-quote-tip';
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'gemini-quote-tip-icon';
+        const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svgEl.setAttribute('viewBox', '0 0 16 16');
+        svgEl.setAttribute('width', '16');
+        svgEl.setAttribute('height', '16');
+        const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        pathEl.setAttribute('fill', 'currentColor');
+        pathEl.setAttribute('d', 'M6.848 2.47a1 1 0 0 1-.318 1.378A7.3 7.3 0 0 0 3.75 7.01A3 3 0 1 1 1 10v-.027a4 4 0 0 1 .01-.232c.009-.15.027-.36.062-.618c.07-.513.207-1.22.484-2.014c.552-1.59 1.67-3.555 3.914-4.957a1 1 0 0 1 1.378.318m7 0a1 1 0 0 1-.318 1.378a7.3 7.3 0 0 0-2.78 3.162A3 3 0 1 1 8 10v-.027a4 4 0 0 1 .01-.232c.009-.15.027-.36.062-.618c.07-.513.207-1.22.484-2.014c.552-1.59 1.67-3.555 3.914-4.957a1 1 0 0 1 1.378.318');
+        svgEl.appendChild(pathEl);
+        iconSpan.appendChild(svgEl);
+        const labelSpan = document.createElement('span');
+        labelSpan.textContent = '引用';
+        tip.appendChild(iconSpan);
+        tip.appendChild(labelSpan);
+        document.body.appendChild(tip);
+
+        let pendingText = '';
+
+        const hideTip = () => {
+            pendingText = '';
+            tip.classList.remove('visible');
+        };
+
+        const positionTip = (rect) => {
+            const docTop = window.scrollY || document.documentElement.scrollTop || 0;
+            const docLeft = window.scrollX || document.documentElement.scrollLeft || 0;
+            let top = docTop + rect.top - tip.offsetHeight - 10;
+            if (top < docTop + 8) {
+                top = docTop + rect.bottom + 10;
+            }
+            let left = docLeft + rect.left + (rect.width / 2) - (tip.offsetWidth / 2);
+            const maxLeft = docLeft + document.documentElement.clientWidth - tip.offsetWidth - 8;
+            left = Math.max(docLeft + 8, Math.min(left, maxLeft));
+            tip.style.top = `${top}px`;
+            tip.style.left = `${left}px`;
+        };
+
+        const updateTipVisibility = () => {
+            const selection = window.getSelection();
+            if (!selection || selection.isCollapsed || !selection.rangeCount) {
+                hideTip();
+                return;
+            }
+            const text = selection.toString().trim();
+            if (!text) {
+                hideTip();
+                return;
+            }
+            const host = findMessageContentHost(selection.anchorNode) || findMessageContentHost(selection.focusNode);
+            if (!host) {
+                hideTip();
+                return;
+            }
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            if (!rect || (rect.width === 0 && rect.height === 0)) {
+                hideTip();
+                return;
+            }
+            pendingText = text;
+            positionTip(rect);
+            tip.classList.add('visible');
+        };
+
+        tip.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!pendingText) return;
+            insertQuoteIntoInput(pendingText);
+            hideTip();
+            window.getSelection()?.removeAllRanges();
+        });
+
+        const scheduleUpdate = () => {
+            requestAnimationFrame(() => requestAnimationFrame(updateTipVisibility));
+        };
+
+        document.addEventListener('pointerup', scheduleUpdate);
+        document.addEventListener('keyup', (evt) => { if (evt.key === 'Escape') hideTip(); });
+        document.addEventListener('selectionchange', () => {
+            const selection = window.getSelection();
+            if (!selection || selection.isCollapsed) hideTip();
+        });
+        window.addEventListener('scroll', hideTip, true);
+        document.addEventListener('pointerdown', (evt) => {
+            if (!evt.target.closest('.gemini-quote-tip')) hideTip();
+        });
+    }
+
+    function findMessageContentHost(node) {
+        let current = node;
+        while (current) {
+            if (current.nodeType === Node.ELEMENT_NODE && current.matches && current.matches('message-content')) {
+                return current;
+            }
+            if (current.nodeType === Node.DOCUMENT_FRAGMENT_NODE && current.host) {
+                current = current.host;
+            } else {
+                current = current.parentNode || current.parentElement;
+            }
+        }
+        return null;
+    }
+
+    function insertQuoteIntoInput(rawText) {
+        if (!rawText) return;
+        const editor = document.querySelector('input-area-v2 .ql-editor');
+        if (!editor) return;
+        const normalizedLines = rawText
+            .replace(/\r\n/g, '\n')
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean);
+        if (!normalizedLines.length) return;
+        const blockquote = normalizedLines.map(line => `> ${line}`).join('\n');
+
+        const rawEditorText = (editor.innerText || '').replace(/\u200b/g, '');
+        const editorHasContent = rawEditorText.trim().length > 0;
+        if (!editorHasContent) {
+            while (editor.firstChild) editor.removeChild(editor.firstChild);
+        }
+        const prefix = editorHasContent ? '\n' : '';
+        const payload = `${prefix}${blockquote}\n\n`;
+
+        const selection = window.getSelection();
+        if (selection) selection.removeAllRanges();
+
+        editor.focus();
+        const range = document.createRange();
+        range.selectNodeContents(editor);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        const textNode = document.createTextNode(payload);
+        range.deleteContents();
+        range.insertNode(textNode);
+        range.setStartAfter(textNode);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        editor.dispatchEvent(new InputEvent('input', { bubbles: true, data: payload, inputType: 'insertText' }));
+    }
+
     function createNewTabButton() {
         const button = document.createElement('button');
         button.className = 'gemini-new-tab-btn';
@@ -256,6 +464,7 @@
         setupWideScreenToggle();
         setupThoughtItalicToggle();
         createNewTabButton();
+        setupQuoteSelectionFeature();
     }
 
     init();
