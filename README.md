@@ -4,7 +4,16 @@
 
 ## 脚本汇总
 
+### ChatGPT 主题 [chatgpt-theme.user.js](./chatgpt-theme.user.js)
+
+<img width="3433" height="3442" alt="演示图" src="https://github.com/user-attachments/assets/5f801b4f-6be5-41fa-b6bf-1ea46dc61f28" />
+
+> 推荐启用 Edge 浏览器 `edge://settings/appearance` 中的外观设置
+
+<img width="2677" height="1633" alt="Edge 外观配置" src="https://github.com/user-attachments/assets/405a6272-5138-4fd0-ac5b-1d0dd17a6bd8" />
+
 ### 平滑圆角输入框 [chat_squircle.user.js](./chat_squircle.user.js)
+
 - **功能描述**: 为 ChatGPT, Gemini, Grok, AI Studio 等 AI 聊天平台的输入框引入 `corner-shape: squircle` CSS 特性。相比标准的 `border-radius`，它提供了数学上更连续、视觉上更平滑的“超椭圆”圆角（类似 iOS 图标风格）。
 - **注意**: 需要浏览器支持实验性 CSS 属性（可能需在 `chrome://flags` 中开启 `Experimental Web Platform features`）。
 
@@ -32,32 +41,38 @@
 </table>
 
 ### Gemini 增强 [gemini.user.js](./gemini.user.js)
+
 - **功能描述**: 为 Gemini 添加便捷功能：在 Logo 旁添加"新标签页打开"按钮，同时为输入框应用 squircle 平滑圆角样式。
 
 <img src="./images/gemini.png" alt="Gemini Enhancement">
 
 ### 聊天导航 [chat-navigation.js](./chat-navigation.js)
+
 - **功能描述**: 罗列每个用户、ChatGPT对话，显示在悬浮栏中，方便切换每个对话。
 - **更新建议**: 使用当前项目版本
 
 <img width="3703" height="1378" alt="image" src="https://github.com/user-attachments/assets/e6700221-81f2-4b69-aaa4-7e6c5d61db2d" />
 
 ### 使用监控 [usage-monitor.user.js](./usage-monitor.user.js)
+
 - **功能描述**: 记录在当前浏览器使用的模型次数
 - **更新建议**: 使用当前项目版本，建议在油猴脚本管理器中禁用自动更新
 
 <img width="3355" height="1918" alt="image" src="https://github.com/user-attachments/assets/0d53919d-9347-46d0-ad45-e7afeacc08e5" />
 
 ### 快捷短语 [gpt-shortcuts.user.js](./gpt-shortcuts.user.js)
+
 - **功能描述**: 快速插入预定义短语
 - **更新建议**: 使用当前项目版本
 
 <img width="2623" height="970" alt="image" src="https://github.com/user-attachments/assets/d6b1f9d0-729a-49d4-9b7d-cc70d7bcf16e" />
 
 ## 模型用量分析
+
 获取ChatGPT数据 → 运行分析脚本
 
-### 步骤：
+### 步骤
+
 1. 从设置中导出ChatGPT数据
 2. 提取 `conversations.json`
 3. 运行分析脚本
@@ -69,6 +84,7 @@ python main.py
 ```
 
 - 最近7天分析  
+
 ```bash
 python main2.py
 ```
