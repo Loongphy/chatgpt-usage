@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         chatgpt model selection
 // @namespace    https://loongphy.com
-// @version      1.3.3
+// @version      1.3.4
 // @description  Globally override model and thinking_effort on chatgpt.com
 // @author       loongphy
 // @match        https://chatgpt.com/*
