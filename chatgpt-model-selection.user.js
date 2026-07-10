@@ -48,7 +48,7 @@
         const data = JSON.parse(bodyStr);
         const m = getModel();
         if (m === "thinking") {
-            data.model = "gpt-5-5-thinking";
+            data.model = "gpt-5-6-thinking";
             data.thinking_effort = getEffort();
         } else {
             data.model = "gpt-5-5";
