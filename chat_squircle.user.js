@@ -1,13 +1,10 @@
 // ==UserScript==
 // @name         Chat Squircle
 // @namespace    https://loongphy.com
-// @version      1.1
-// @description  Adds corner-shape: squircle to chat input boxes on ChatGPT, Gemini, Grok, and AI Studio
+// @version      1.2
+// @description  Adds corner-shape: squircle to the ChatGPT chat input box
 // @author       loongphy
 // @match        https://chatgpt.com/*
-// @match        https://gemini.google.com/*
-// @match        https://grok.com/*
-// @match        https://aistudio.google.com/*
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
@@ -15,96 +12,52 @@
 (function() {
     'use strict';
 
-    const SQUIRCLE_CSS = `
-        corner-shape: squircle;
-    `;
+    const PROP = 'corner-shape';
+    const VAL = 'squircle';
+    const INPUT_SELECTOR = '#prompt-textarea';
 
-    const CONFIG = [
-        {
-            domain: 'chatgpt.com',
-            selector: '#prompt-textarea',
-            targetParent: true,
-            parentDepth: 3
-        },
-        {
-            domain: 'chatgpt.com',
-            selector: '.user-message-bubble-color',
-            targetParent: false,
-            parentDepth: 0
-        },
-        {
-            domain: 'chatgpt.com',
-            selector: '.divide-token-border-default',
-            targetParent: false,
-            parentDepth: 0
-        },
-        {
-            domain: 'gemini.google.com',
-            selector: '.ql-editor',
-            targetParent: true,
-            parentDepth: 7
-        },
-        {
-            domain: 'grok.com',
-            selector: '[contenteditable="true"]',
-            targetParent: true,
-            parentDepth: 4
-        },
-        {
-            domain: 'aistudio.google.com',
-            selector: '.prompt-input-wrapper',
-            targetParent: false, 
-            parentDepth: 0
+    // ChatGPT re-renders the composer frequently and occasionally wraps it in
+    // an extra (or fewer) layer of divs. A fixed parent depth therefore breaks
+    // whenever the DOM shifts by one level. Instead, walk up from the input
+    // and pick the nearest ancestor that actually paints a visible rounded
+    // border (non-zero computed border-radius) — that is the container whose
+    // corners we see, so it is the one that needs `corner-shape: squircle`.
+    function findVisibleCornerBox(el, maxDepth) {
+        let node = el.parentElement;
+        for (let i = 0; i < maxDepth && node; i++) {
+            const r = getComputedStyle(node).borderRadius;
+            // border-radius may be "0px" or "12px 34px ..." — inspect first value
+            const first = parseFloat(r);
+            if (!Number.isNaN(first) && first > 0) return node;
+            node = node.parentElement;
         }
-    ];
-
-    function getDomain() {
-        return window.location.hostname;
+        return null;
     }
 
-    function applySquircle() {
-        const domain = getDomain();
-        // Find all configs that match the current domain
-        const activeConfigs = CONFIG.filter(config => domain.includes(config.domain));
-        
-        if (activeConfigs.length === 0) return;
-        
-        activeConfigs.forEach(config => {
-            const elements = document.querySelectorAll(config.selector);
+    function applySquircle(el) {
+        const target = findVisibleCornerBox(el, 8);
+        if (!target) return;
+        if (target.style.getPropertyValue(PROP) === VAL) return; // already applied
+        target.style.setProperty(PROP, VAL);
+    }
 
-            elements.forEach(el => {
-                let target = el;
-                
-                if (config.targetParent) {
-                    // Traverse up to find the container that likely has the border
-                    // This is heuristic: look for a div with a border or background
-                    let parent = el.parentElement;
-                    for(let i=0; i<config.parentDepth && parent; i++) {
-                         target = parent;
-                         parent = parent.parentElement;
-                    }
-                }
-
-                // Apply the style directly to the target element
-                if (!target.dataset.squircleApplied) {
-                    target.style.cssText += SQUIRCLE_CSS;
-                    target.dataset.squircleApplied = "true";
-                }
-            });
-        });
+    function applyAll() {
+        document.querySelectorAll(INPUT_SELECTOR).forEach(applySquircle);
     }
 
     // Initial run
-    applySquircle();
+    applyAll();
 
-    // Observe changes for dynamic SPAs
-    const observer = new MutationObserver((mutations) => {
-        applySquircle();
+    // Re-apply on dynamic SPA changes (throttled to one run per animation frame)
+    let scheduled = false;
+    const observer = new MutationObserver(() => {
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(() => {
+            scheduled = false;
+            applyAll();
+        });
     });
 
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
-
+    observer.observe(document.body, { childList: true, subtree: true });
 })();

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GPTShortCuts
 // @namespace    https://chatgpt.com/
-// @version      0.1.0
+// @version      0.1.1
 // @description  快速插入常用语到ChatGPT输入框
 // @author       Steve5wutongyu6&Codex，loongphy for dark mode
 // @match        https://chatgpt.com/*
@@ -103,11 +103,22 @@
       const style = document.createElement('style');
       style.id = 'gpt-shortcuts-global-styles';
       style.textContent = `
+        /*
+          The toggle lives inside ChatGPT's composer button row, the same flex
+          row that holds the reasoning-level pill and the send button. Both of
+          those use CSS Anchor Positioning (position-anchor) so their tooltips
+          recompute position whenever the row reflows. To stop our injected
+          element from making those tooltips jitter we keep the toggle fully
+          layout-isolated: fixed box, no layout transitions, contain:layout so
+          its opacity hover can never trigger a row reflow, and an intrinsic
+          size so inserting/removing it never shifts siblings.
+        */
         .gpt-shortcuts-toggle {
           display: inline-flex;
           align-items: center;
           justify-content: center;
           gap: 6px;
+          flex: 0 0 auto;
           height: 36px;
           padding: 0 14px;
           border: none;
@@ -115,9 +126,13 @@
           cursor: pointer;
           font-size: 14px;
           font-weight: 500;
+          /* opacity-only hover: never changes box size -> no row reflow */
           transition: opacity 0.2s ease;
           background: none;
           color: inherit;
+          /* isolate our layout so hover/state changes can't reflow the row */
+          contain: layout style;
+          contain-intrinsic-size: auto 92px auto 36px;
         }
         .gpt-shortcuts-toggle:focus-visible {
           outline: 2px solid rgba(59, 130, 246, 0.6);
@@ -129,6 +144,7 @@
         .gpt-shortcuts-toggle-icon {
           width: 16px;
           height: 16px;
+          transform: rotate(0deg);
           transition: transform 0.2s ease;
         }
         .gpt-shortcuts-toggle[data-collapsed="false"] .gpt-shortcuts-toggle-icon {
@@ -234,6 +250,15 @@
       const style = document.createElement('style');
       style.textContent = `
         :host {
+          display: block;
+          /*
+            Isolate our layout from ChatGPT's. The panel sits as a sibling of
+            the composer form; when it grows/shrinks (open/close, manage mode)
+            it must not force the whole composer — and thus the anchored
+            reasoning/send button tooltips — to reflow every frame. contain keeps
+            our subtree's layout work contained to this host.
+          */
+          contain: layout style;
           font-family: var(--font-sans, "Helvetica Neue", Helvetica, Arial, sans-serif);
           color: rgba(25, 28, 27, 0.9);
           --shortcut-surface: rgba(248, 250, 247, 0.95);
@@ -813,13 +838,18 @@
         setState(() => ({ groups: newGroups, activeIndex: newGroups.length - 1 }));
       });
   
+      let rafId = null;
       const observer = new MutationObserver(() => {
-        const hostConnected = document.body.contains(elements.host);
-        const toggleConnected = !elements.toggleButton || document.body.contains(elements.toggleButton);
-        if (!hostConnected || !toggleConnected) {
-          observer.disconnect();
-          main();
-        }
+        if (rafId !== null) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          const hostConnected = document.body.contains(elements.host);
+          const toggleConnected = !elements.toggleButton || document.body.contains(elements.toggleButton);
+          if (!hostConnected || !toggleConnected) {
+            observer.disconnect();
+            main();
+          }
+        });
       });
   
       observer.observe(document.body, { childList: true, subtree: true });
@@ -832,10 +862,15 @@
     const init = () => {
       const success = main();
       if (success) return;
+      let rafId = null;
       const observer = new MutationObserver(() => {
-        if (main()) {
-          observer.disconnect();
-        }
+        if (rafId !== null) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          if (main()) {
+            observer.disconnect();
+          }
+        });
       });
       observer.observe(document.body, { childList: true, subtree: true });
     };

@@ -67,6 +67,11 @@
 
 <img width="2623" height="970" alt="image" src="https://github.com/user-attachments/assets/d6b1f9d0-729a-49d4-9b7d-cc70d7bcf16e" />
 
+### 修复 Tooltip 抖动 [chatgpt-tooltip-antijitter.user.js](./chatgpt-tooltip-antijitter.user.js)
+
+- **功能描述**: 修复 ChatGPT 输入框「模型推理等级」「发送按钮」悬停 tooltip 出现后一直闪烁/来回抖动的问题。
+- **根因**: ChatGPT 的这些 tooltip 用 CSS Anchor Positioning 定位，但渲染在 composer 内部且 `pointer-events: auto`，与触发按钮产生约 30px 垂直重叠。鼠标悬停时 tooltip 抢占了指针 → Radix 以为指针离开触发按钮而关闭 tooltip → 指针回到按钮 → 重新打开 → 每帧循环抖动。脚本恢复 Radix 默认的 `pointer-events: none`，让指针穿透 tooltip 直达按钮，从而消除循环抖动。
+
 ## 模型用量分析
 
 获取ChatGPT数据 → 运行分析脚本
