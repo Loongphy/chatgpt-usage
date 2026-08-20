@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Chat Squircle
 // @namespace    https://loongphy.com
-// @version      1.2
-// @description  Adds corner-shape: squircle to the ChatGPT chat input box
+// @version      1.3
+// @description  Adds corner-shape: squircle to the ChatGPT / Microsoft 365 Copilot chat input box
 // @author       loongphy
 // @match        https://chatgpt.com/*
+// @match        https://m365.cloud.microsoft/*
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
@@ -14,7 +15,9 @@
 
     const PROP = 'corner-shape';
     const VAL = 'squircle';
-    const INPUT_SELECTOR = '#prompt-textarea';
+    // ChatGPT: #prompt-textarea
+    // Microsoft 365 Copilot (m365.cloud.microsoft): #m365-chat-editor-target-element
+    const INPUT_SELECTORS = '#prompt-textarea, #m365-chat-editor-target-element';
 
     // ChatGPT re-renders the composer frequently and occasionally wraps it in
     // an extra (or fewer) layer of divs. A fixed parent depth therefore breaks
@@ -42,7 +45,7 @@
     }
 
     function applyAll() {
-        document.querySelectorAll(INPUT_SELECTOR).forEach(applySquircle);
+        document.querySelectorAll(INPUT_SELECTORS).forEach(applySquircle);
     }
 
     // Initial run
