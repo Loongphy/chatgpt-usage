@@ -72,6 +72,13 @@
 - **功能描述**: 修复 ChatGPT 输入框「模型推理等级」「发送按钮」悬停 tooltip 出现后一直闪烁/来回抖动的问题。
 - **根因**: ChatGPT 的这些 tooltip 用 CSS Anchor Positioning 定位，但渲染在 composer 内部且 `pointer-events: auto`，与触发按钮产生约 30px 垂直重叠。鼠标悬停时 tooltip 抢占了指针 → Radix 以为指针离开触发按钮而关闭 tooltip → 指针回到按钮 → 重新打开 → 每帧循环抖动。脚本恢复 Radix 默认的 `pointer-events: none`，让指针穿透 tooltip 直达按钮，从而消除循环抖动。
 
+### 长对话滚动加速 [chatgpt-scroll-booster.user.js](./chatgpt-scroll-booster.user.js)
+
+- **功能描述**：让超长会话（几万~十几万 px 高）向上滚动不再卡。核心是给每条消息的 markdown 内容块加 `content-visibility: auto`，并用实测真实高度写 `contain-intrinsic-size`，让屏外内容彻底跳过样式计算、布局和绘制；文档高度异常塌陷时自动回滚。滚动过程中临时关闭顶部导航栏毛玻璃与代码块工具条吸附，停止后自动恢复。
+- **HUD**：右下角常驻 FPS / 主线程阻塞面板（⚡ 前缀 + 按帧率颜色分级）；`blur` / `sticky` 两项可点击开关，点击立即生效并写入 localStorage 记住；双击数字区切换精简 / 详细模式。
+
+<img src="./images/scroll-booster-hud.png" width="420" alt="HUD">
+
 ### 常驻对话 TOC [chatgpt-always-toc.user.js](./chatgpt-always-toc.user.js)
 
 - **功能描述**：让 ChatGPT 右缘的会话 TOC（竖排刻度条，悬停展开全部提问、点击跳转）在**任何对话里常驻显示**。原生实现只在提问数达到阈值的长对话才渲染，且挂载时机不稳定（同一长对话刷新后滚动也未必出现）；短对话则完全不渲染。脚本自建一个外观与原生一致的 TOC 补齐缺口，原生挂载后自动让位、卸载后自动接管。
