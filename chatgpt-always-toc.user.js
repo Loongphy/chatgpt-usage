@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         ChatGPT Always-On Conversation TOC
 // @namespace    https://loongphy.com
-// @version      1.0.0
-// @description  ChatGPT renders the right-edge conversation TOC (tick rail + hover outline of every prompt) only on long threads, and even then mounts it unreliably. This keeps a look-alike TOC permanently visible on every conversation regardless of turn count, with hover-to-expand and click-to-jump.
+// @version      1.0.1
+// @description  Always show ChatGPT's right-edge conversation TOC (tick rail; hover expands the full prompt outline, click to jump) — removes the native limit of only showing it after 5 prompts. Yields to the native TOC on long threads and follows dark/light themes.
 // @author       loongphy
 // @license      MIT
 // @icon64       https://www.google.com/s2/favicons?sz=64&domain=chatgpt.com

@@ -72,6 +72,25 @@
 - **功能描述**: 修复 ChatGPT 输入框「模型推理等级」「发送按钮」悬停 tooltip 出现后一直闪烁/来回抖动的问题。
 - **根因**: ChatGPT 的这些 tooltip 用 CSS Anchor Positioning 定位，但渲染在 composer 内部且 `pointer-events: auto`，与触发按钮产生约 30px 垂直重叠。鼠标悬停时 tooltip 抢占了指针 → Radix 以为指针离开触发按钮而关闭 tooltip → 指针回到按钮 → 重新打开 → 每帧循环抖动。脚本恢复 Radix 默认的 `pointer-events: none`，让指针穿透 tooltip 直达按钮，从而消除循环抖动。
 
+### 常驻对话 TOC [chatgpt-always-toc.user.js](./chatgpt-always-toc.user.js)
+
+- **功能描述**：让 ChatGPT 右缘的会话 TOC（竖排刻度条，悬停展开全部提问、点击跳转）在**任何对话里常驻显示**。原生实现只在提问数达到阈值的长对话才渲染，且挂载时机不稳定（同一长对话刷新后滚动也未必出现）；短对话则完全不渲染。脚本自建一个外观与原生一致的 TOC 补齐缺口，原生挂载后自动让位、卸载后自动接管。
+- **原生实现结构**（逆向，2026-08）
+
+  | 部件 | 结构 |
+  | --- | --- |
+  | 悬浮容器 | `div.fixed.inset-e-4.top-1/2.z-20`（右缘居中 fixed） |
+  | 刻度条 | 每条用户提问一个 2×18px 圆角刻度 `button[data-toc-item-index]`，当前提问带 `data-toc-active` |
+  | 悬停面板 | `div.popover`（圆角卡片 + 阴影），列出全部提问文本，单行截断，当前项高亮 |
+  | 数据源 | 线程骨架 `div[class*="convSearchResultHighlightRoot"]` 下的 `[data-turn-id-container]` 占位，**每个 turn 一个、虚拟化时也常驻**；用户提问在奇数索引（首位的 `client-created-root` 是不挂载内容的幻影容器），提问文本取自已挂载的 `section[data-turn="user"]` |
+
+- **脚本要点**
+  - 刻度/列表点击平滑跳转：长距离直接 `scrollTop`（`behavior:'smooth'` 会被 ChatGPT 的滚动管理立即取消），短距离 rAF 补间；跳转后 2 秒内多次重申目标位置，对抗应用把滚动位置拉回旧锚点的行为，用户一有滚轮/触摸/按键输入立即放弃。
+  - 虚拟化长对话里未挂载的提问先以 "Prompt N" 兜底，section 挂载后自动回填真实文本。
+  - 高亮同步在滚动时只做一次子节点遍历（rAF 节流），不与滚动加速脚本抢主线程。
+  - 样式全部走 ChatGPT 主题变量（`--text-primary` / `--text-tertiary` / `--main-surface-primary`），深浅色主题自动跟随。
+
+
 ## 模型用量分析
 
 获取ChatGPT数据 → 运行分析脚本
