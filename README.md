@@ -109,6 +109,8 @@
 
 - **功能描述**：拦截会话 API 响应流，计算并显示 token 生成速度；token 数使用网页内置的 o200k Tiktoken 精确计算，加载失败时退回字符估算。
 
+<img width="1492" height="508" alt="PixPin_2026-09-21_17-51-48" src="https://github.com/user-attachments/assets/6a9b7dcb-5181-4955-8e06-247a105a4b9f" />
+
 
 ## 模型用量分析
 
