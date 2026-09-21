@@ -98,6 +98,18 @@
   - 样式全部走 ChatGPT 主题变量（`--text-primary` / `--text-tertiary` / `--main-surface-primary`），深浅色主题自动跟随。
 
 
+### linux.do 发帖时间列 [linuxdo-topic-created-at.user.js](./linuxdo-topic-created-at.user.js)
+
+- **功能描述**：给 linux.do 的话题列表（首页、`/tag/*`、分类页、话题内推荐列表）在"活动"列前新增一列**发帖时间**。Discourse 列表页只渲染最后回复时间，创建时间只存在于列表 JSON 里；脚本在 `document-start` 拦截页面的 fetch/XHR，从 `.json` 列表响应和 message-bus 长轮询（实时插入的新主题只在这里）收集创建时间（localStorage 缓存兜底），再给每张 `.topic-list` 表注入表头与单元格。SPA 路由切换、无限滚动、Ember 重渲染由 MutationObserver + 低频轮询补齐。
+- **显示规则**：与"活动"列同风格的紧凑格式——今天显示 `HH:mm`，昨天/前天显示"昨天/前天"，一周内显示 `N天前`，更早显示日期（当年 `MM-DD`，往年 `YYYY-MM-DD`），悬停可看完整本地时间。
+
+<img src="./images/linuxdo-created-at.png" width="80%" alt="linux.do 发帖时间列">
+
+### Token 生成速度 [chatgpt-token-speed.user.js](./chatgpt-token-speed.user.js)
+
+- **功能描述**：拦截会话 API 响应流，计算并显示 token 生成速度；token 数使用网页内置的 o200k Tiktoken 精确计算，加载失败时退回字符估算。
+
+
 ## 模型用量分析
 
 获取ChatGPT数据 → 运行分析脚本
