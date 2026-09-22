@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT Token Speed
 // @namespace    https://loongphy.com
-// @version      0.1.0
+// @version      0.1.1
 // @description  Shows token generation speed while ChatGPT streams a reply.
 // @author       loongphy
 // @match        https://chatgpt.com/*
@@ -81,6 +81,12 @@
         return estTokens(s);
     }
 
+    // Conversation id of the page being viewed (/c/<id>), null on the
+    // new-chat page and elsewhere. Used to bury stale figures: after a
+    // switch the badge hides instead of showing the last view's numbers.
+    const convOf = p => (p.match(/^\/c\/([^/?#]+)/) || [])[1] || null;
+    let curConv = convOf(location.pathname);
+
     // ================= API stream interception (primary) =================
     // Hooks window.fetch, tees the /backend-api/f/conversation SSE stream and
     // counts real server deltas — true generation timing, immune to DOM
@@ -94,6 +100,8 @@
         t0: 0, lastT: 0, lastRate: 0,
         armed: false, finalized: false, ended: false,
         curRole: '', curType: '', open: false,
+        conv: null,        // conversation the current stream belongs to
+        convOk: false,     // conv came from request/SSE, not a URL guess
     };
 
     function apiDelta(text, t) {
@@ -122,6 +130,13 @@
         const ops = (ev.o === 'patch' && Array.isArray(ev.v)) ? ev.v : [ev];
         for (const op of ops) {
             if (!op || typeof op !== 'object') continue;
+            // Control events (message_marker etc.) carry the server-side
+            // conversation id — the authoritative owner of this stream.
+            const cid = (typeof op.conversation_id === 'string' && op.conversation_id) ||
+                (op.p === '/conversation_id' && typeof op.v === 'string' && op.v) ||
+                (op.v && typeof op.v === 'object' &&
+                 typeof op.v.conversation_id === 'string' && op.v.conversation_id);
+            if (cid) { api.conv = cid; api.convOk = true; }
             const m = op.v && op.v.message;
             if (m && m.author) {
                 api.curRole = m.author.role;
@@ -141,12 +156,13 @@
         }
     }
 
-    function consumeSSE(stream) {
+    function consumeSSE(stream, convId) {
         Object.assign(api, {
             samples: [], growth: 0, total: 0, bulk: 0, t0: 0, lastT: 0,
             lastRate: 0,
             armed: false, finalized: false, ended: false, settled: false,
             curRole: '', curType: '', open: false,
+            conv: convId || convOf(location.pathname), convOk: !!convId,
         });
         const mine = api.current = {};
         const rd = stream.getReader();
@@ -185,8 +201,17 @@
                         : (args[0] && args[0].url) || '';
                     if (/\/backend-api\/f\/conversation(?:\/resume)?(?:[?#]|$)/
                             .test(url) && res.body) {
+                        // The POST body's conversation_id is the real owner
+                        // (absent for a brand-new chat — SSE supplies it).
+                        let cid = null;
+                        try {
+                            const rb = args[1] && args[1].body;
+                            if (typeof rb === 'string' && rb[0] === '{') {
+                                cid = JSON.parse(rb).conversation_id || null;
+                            }
+                        } catch {}
                         const [a, b] = res.body.tee();
-                        consumeSSE(b);
+                        consumeSSE(b, cid);
                         return new Response(a, {
                             status: res.status, statusText: res.statusText,
                             headers: res.headers,
@@ -279,8 +304,27 @@
     }
 
     function sample(now) {
+        // Conversation switch or new chat: everything the badge could show
+        // belongs to the previous view — hide it and drop per-element state.
+        // A stream that started on the new-chat page adopts the conversation
+        // the app navigates to (first message navigates / → /c/<id> while
+        // the reply is still streaming).
+        const conv = convOf(location.pathname);
+        if (conv !== curConv) {
+            curConv = conv;
+            if (badge) badge.style.display = 'none';
+            badgeFor = null;
+            states.clear();
+            dirty.clear();
+            // Stream still owned by an unconfirmed guess (new-chat sends can
+            // fire while the URL is already a client-side /c/WEB:<id> that
+            // the app later replaces) — keep adopting the nav target until
+            // an authoritative id arrives via request body or SSE.
+            if (!api.convOk && api.current && !api.ended &&
+                !api.finalized) api.conv = conv;
+        }
         // ---- API path: real server deltas own the badge when present ----
-        if (api.growth) {
+        if (api.growth && api.conv === curConv) {
             while (api.samples.length &&
                    now - api.samples[0][0] > WINDOW_MS) api.samples.shift();
             const idle = now - api.lastT;
