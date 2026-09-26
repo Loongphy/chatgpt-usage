@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         chatgpt model selection
 // @namespace    https://loongphy.com
-// @version      1.3.4
-// @description  Globally override model and thinking_effort on chatgpt.com
+// @version      1.3.5
+// @description  DEPRECATED — ChatGPT now manages default reasoning effort natively at https://chatgpt.com/admin/models?tab=workspace
 // @author       loongphy
 // @match        https://chatgpt.com/*
 // @icon         https://chatgpt.com/favicon.ico

@@ -105,28 +105,6 @@
 <img width="1492" height="508" alt="PixPin_2026-09-21_17-51-48" src="https://github.com/user-attachments/assets/6a9b7dcb-5181-4955-8e06-247a105a4b9f" />
 
 
-## 模型用量分析
-
-获取ChatGPT数据 → 运行分析脚本
-
-### 步骤
-
-1. 从设置中导出ChatGPT数据
-2. 提取 `conversations.json`
-3. 运行分析脚本
-
-- 完整历史分析
-
-```bash
-python main.py
-```
-
-- 最近7天分析  
-
-```bash
-python main2.py
-```
-
 ## 版权说明
 
 当前仓库仅为原脚本的体验优化版本，所有脚本的版权归原作者所有。本仓库提供的脚本基于公开的原始脚本进行体验改进。
