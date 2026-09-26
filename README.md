@@ -46,6 +46,14 @@
 
 <img src="./images/gemini.png" alt="Gemini Enhancement">
 
+### 新标签页打开 [chatgpt-open-in-new-tab.user.js](./chatgpt-open-in-new-tab.user.js)
+
+- **功能描述**: 为 ChatGPT 侧边栏会话右键菜单顶部注入“在新标签页打开”（菜单文案跟随菜单自身语言，英文界面显示 Open in new tab），同时把侧边栏 “New chat” 按钮转换为真实链接 `<a href="/">`，右键可直接使用浏览器原生菜单（新标签页/新窗口中打开、复制链接等），普通左键仍走 ChatGPT 自身路由。
+
+<img width="885" height="507" alt="PixPin_2026-09-26_18-47-54" src="https://github.com/user-attachments/assets/3e6211f4-8b68-4cf9-b8d9-8b34675ebc61" />
+
+<img width="827" height="225" alt="PixPin_2026-09-26_18-53-39" src="https://github.com/user-attachments/assets/55a328c7-f7b5-435a-8eb6-a3a3bf1b2378" />
+
 ### 聊天导航 [chat-navigation.js](./chat-navigation.js)
 
 - **功能描述**: 罗列每个用户、ChatGPT对话，显示在悬浮栏中，方便切换每个对话。
