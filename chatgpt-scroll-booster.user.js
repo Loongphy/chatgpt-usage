@@ -1,15 +1,15 @@
 // ==UserScript==
 // @name         ChatGPT Long Thread Scroll Booster
-// @namespace    https://chatgpt.com/
-// @version      2.0.0
+// @namespace    https://loongphy.com
+// @version      2.0.1
 // @description  Fixes jank when scrolling up in very long ChatGPT threads: skips style/layout/paint for off-screen content via content-visibility + measured contain-intrinsic-size (measured: 79ms -> 32ms per frame, -72% main-thread blocking), disables the header backdrop blur while scrolling, and shows a always-on FPS / blocking HUD in the bottom-right corner.
-// @author       you
+// @author       Loongphy
 // @match        https://chatgpt.com/*
 // @match        https://chat.openai.com/*
 // @run-at       document-start
 // @grant        none
 // @noframes
-// @license      MIT
+// @license      PolyForm-Noncommercial-1.0.0; https://polyformproject.org/licenses/noncommercial/1.0.0/
 // ==/UserScript==
 //
 // Measured on a 40k-100k px tall Kotlin thread (2026-08):

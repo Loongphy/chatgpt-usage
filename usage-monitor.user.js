@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT用量统计
-// @namespace    https://github.com/tizee/tampermonkey-chatgpt-model-usage-monitor
-// @version      3.8.4
+// @namespace    https://loongphy.com
+// @version      3.8.5
 // @description  优雅的 ChatGPT 模型调用量实时统计，界面简洁清爽（中文版），支持导入导出、一周分析报告、快捷键切换最小化（Ctrl/Cmd+I）
 // @author       tizee (original), schweigen (modified)
 // @match        https://chatgpt.com/*
@@ -10,7 +10,7 @@
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
-// @license      MIT
+// @license      PolyForm-Noncommercial-1.0.0; https://polyformproject.org/licenses/noncommercial/1.0.0/
 // @run-at       document-start
 // @downloadURL https://update.greasyfork.org/scripts/533399/ChatGPT%E7%94%A8%E9%87%8F%E7%BB%9F%E8%AE%A1.user.js
 // @updateURL https://update.greasyfork.org/scripts/533399/ChatGPT%E7%94%A8%E9%87%8F%E7%BB%9F%E8%AE%A1.meta.js

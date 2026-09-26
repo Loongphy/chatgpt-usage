@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Gemini Enhancement
 // @namespace    https://loongphy.com
-// @version      1.6.0
+// @version      1.6.1
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
 // @description  Adds new-tab button, squircle input, and ChatGPT-style text quoting
-// @author       loongphy
+// @author       Loongphy
+// @license      PolyForm-Noncommercial-1.0.0; https://polyformproject.org/licenses/noncommercial/1.0.0/
 // @match        https://gemini.google.com/*
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand

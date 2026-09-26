@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         GPTShortCuts
-// @namespace    https://chatgpt.com/
-// @version      0.1.1
+// @namespace    https://loongphy.com
+// @version      0.1.2
 // @description  快速插入常用语到ChatGPT输入框
-// @author       Steve5wutongyu6&Codex，loongphy for dark mode
+// @author       Steve5wutongyu6&Codex，Loongphy for dark mode
+// @license      PolyForm-Noncommercial-1.0.0; https://polyformproject.org/licenses/noncommercial/1.0.0/
 // @match        https://chatgpt.com/*
 // @match        https://chat.openai.com/*
 // @grant        none

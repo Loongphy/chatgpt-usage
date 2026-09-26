@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         ChatGPT Tooltip Anti-Jitter
 // @namespace    https://loongphy.com
-// @version      0.1.0
+// @version      0.1.1
 // @description  Fix the composer tooltip flicker on ChatGPT (reasoning-level pill & send button). ChatGPT renders its anchored tooltips with `pointer-events: auto` directly inside the composer (not portaled), and they overlap their triggers, so a hovered tooltip steals the pointer from its trigger → Radix closes it → pointer returns → reopens → endless flicker. Restoring the Radix default `pointer-events: none` breaks the loop.
-// @author       loongphy
+// @author       Loongphy
+// @license      PolyForm-Noncommercial-1.0.0; https://polyformproject.org/licenses/noncommercial/1.0.0/
 // @match        https://chatgpt.com/*
 // @match        https://chat.openai.com/*
 // @grant        none

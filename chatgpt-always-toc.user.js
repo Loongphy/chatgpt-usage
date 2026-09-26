@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         ChatGPT Always-On Conversation TOC
 // @namespace    https://loongphy.com
-// @version      1.0.1
+// @version      1.0.2
 // @description  Always show ChatGPT's right-edge conversation TOC (tick rail; hover expands the full prompt outline, click to jump) — removes the native limit of only showing it after 5 prompts. Yields to the native TOC on long threads and follows dark/light themes.
-// @author       loongphy
-// @license      MIT
+// @author       Loongphy
+// @license      PolyForm-Noncommercial-1.0.0; https://polyformproject.org/licenses/noncommercial/1.0.0/
 // @icon64       https://www.google.com/s2/favicons?sz=64&domain=chatgpt.com
 // @match        https://chatgpt.com/*
 // @grant        none

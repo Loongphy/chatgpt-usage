@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         Chat Squircle
 // @namespace    https://loongphy.com
-// @version      1.3
+// @version      1.3.1
 // @description  Adds corner-shape: squircle to the ChatGPT / Microsoft 365 Copilot chat input box
-// @author       loongphy
+// @author       Loongphy
+// @license      PolyForm-Noncommercial-1.0.0; https://polyformproject.org/licenses/noncommercial/1.0.0/
 // @match        https://chatgpt.com/*
 // @match        https://m365.cloud.microsoft/*
 // @grant        none

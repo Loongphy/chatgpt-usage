@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         ChatGPT 对话导航
-// @namespace    http://tampermonkey.net/
-// @version      4.1
+// @namespace    https://loongphy.com
+// @version      4.1.1
 // @description  紧凑导航 + 实时定位；修复边界误判；底部纯箭头按钮；回到顶部/到底部单击即用；禁用面板内双击选中；快捷键 Cmd+↑/↓（Mac）或 Alt+↑/↓（Windows）；修复竞态条件和流式输出检测问题；感谢loongphy佬适配暗色模式（3.0），加入标记点📌功能和收藏夹功能（4.0大更新）;适配左右侧边栏自动跟随（4.1大更新）
-// @author       schweigen, loongphy(在3.0版本帮忙加入暗色模式)
-// @license      MIT
+// @author       schweigen, Loongphy(在3.0版本帮忙加入暗色模式)
+// @license      PolyForm-Noncommercial-1.0.0; https://polyformproject.org/licenses/noncommercial/1.0.0/
 // @match        https://chatgpt.com/*
 // @grant        GM_registerMenuCommand
 // @grant        GM_getValue

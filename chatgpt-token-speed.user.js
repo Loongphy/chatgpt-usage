@@ -1,15 +1,15 @@
 // ==UserScript==
 // @name         ChatGPT Token Speed
 // @namespace    https://loongphy.com
-// @version      0.1.1
+// @version      0.1.2
 // @description  Shows token generation speed while ChatGPT streams a reply.
-// @author       loongphy
+// @author       Loongphy
 // @match        https://chatgpt.com/*
 // @match        https://chat.openai.com/*
 // @grant        none
 // @run-at       document-start
 // @noframes
-// @license      MIT
+// @license      PolyForm-Noncommercial-1.0.0; https://polyformproject.org/licenses/noncommercial/1.0.0/
 // ==/UserScript==
 
 (function () {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT Theme
 // @namespace    https://loongphy.com
-// @version      0.1.0
+// @version      0.1.1
 // @description  ChatGPT 主题
 // @author       Loongphy
 // @license      PolyForm-Noncommercial-1.0.0; https://polyformproject.org/licenses/noncommercial/1.0.0/
