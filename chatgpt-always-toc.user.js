@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         ChatGPT Always-On Conversation TOC
 // @namespace    https://loongphy.com
-// @version      1.0.2
-// @description  Always show ChatGPT's right-edge conversation TOC (tick rail; hover expands the full prompt outline, click to jump) — removes the native limit of only showing it after 5 prompts. Yields to the native TOC on long threads and follows dark/light themes.
+// @version      1.1.0
+// @description  Always show ChatGPT's right-edge conversation TOC (tick rail; hover expands the full prompt outline, click to jump) — removes the native limit of only showing it after N prompts. Yields to the native TOC on long threads and follows dark/light themes.
 // @author       Loongphy
 // @license      PolyForm-Noncommercial-1.0.0; https://polyformproject.org/licenses/noncommercial/1.0.0/
 // @icon64       https://www.google.com/s2/favicons?sz=64&domain=chatgpt.com
@@ -14,30 +14,40 @@
 // ==/UserScript==
 //
 // 原生 TOC（右侧竖排刻度 + 悬停展开完整提问列表）只有在提问数达到一定阈值的长对话里才会渲染，
-// 且挂载时机不稳定（同一长对话刷新后滚动也不一定出现）。本脚本自建一个外观一致、常驻的 TOC：
-//   - 数据源：线程骨架 div[class*="convSearchResultHighlightRoot"] 下的 [data-turn-id-container]
-//     占位（每个 turn 一个，虚拟化时也常驻，奇数索引为用户提问；首位的 client-created-root
-//     是不挂载内容的幻影容器）；已挂载的 section[data-turn="user"] 补充提问文本。
-//   - 长对话里若原生 TOC 挂载则自动让位，原生卸载后自动接管。
+// 且挂载时机不稳定。本脚本自建一个外观一致、常驻的 TOC：
+//   - 数据源（当前 AppShell 前端）：会话内容根 [data-chatgpt-conversation-selection-target]
+//     下的 [data-turn-key] 容器 —— 每个容器 = 一对 user+assistant turn；
+//     用户提问单元 [data-chatgpt-search-unit-key$=":user"]（未挂载时无内部内容，
+//     容器骨架仍在，可做虚拟化占位）；提问文本取其内 [data-user-message-bubble]。
+//   - 滚动容器 .thread-scroll-container（data-app-action-timeline-scroll）。
+//   - 长对话里若原生 TOC（button[data-toc-item-index]）挂载则自动让位，卸载后自动接管。
 //   - 点击刻度/列表项平滑跳转；目标 turn 未挂载时先滚到占位，挂载后再校准一次。
-//   - 滚动时只做一次子节点遍历来同步高亮（rAF 节流），不与滚动加速脚本抢主线程。
+//   - 滚动时只做一次遍历来同步高亮（rAF 节流），不与滚动加速脚本抢主线程。
 //
+// 变更：
+//   1.1.0 适配 AppShell 新 DOM：thread root/turn/user-unit/scroll container
+//         选择器全部更换；一容器一提问，不再需要奇偶位推断。
+//   1.0.x 基于 convSearchResultHighlightRoot + data-turn-id-container 的旧实现。
+
 (function () {
   'use strict';
 
   /* ---------------------------------------------------------------- 配置 */
 
-  var MIN_PROMPTS = 1;          // 用户提问少于该数量时不显示（1 = 只要有对话就显示）
-  var NATIVE_SELECTOR = 'div.fixed.inset-e-4.top-1\\/2 button[data-toc-item-index]';
-  var TEXT_SEL = '[data-message-author-role="user"] .whitespace-pre-wrap';
+  var MIN_PROMPTS = 1;          // 用户提问少于该数量时不显示
+  var ROOT_SEL = '[data-chatgpt-conversation-selection-target], [data-thread-find-target="conversation"]';
+  var TURN_SEL = '[data-turn-key]';
+  var USER_UNIT_SEL = '[data-chatgpt-search-unit-key$=":user"], [data-content-search-unit-key$=":user"]';
+  var USER_TEXT_SEL = '[data-user-message-bubble] .whitespace-pre-wrap, [data-search-result-target]';
+  var SCROLL_SEL = '.thread-scroll-container, [data-app-action-timeline-scroll]';
+  var NATIVE_SELECTOR = 'button[data-toc-item-index]';
   var SCROLL_EXTRA = 16;        // 跳转时在 header 之外额外留白
   var HOST_ID = 'cgpt-always-toc';
 
   /* ---------------------------------------------------------------- 状态 */
 
   var cid = null;               // 当前会话 id，切换时重置缓存
-  var textById = new Map();     // containerId -> 提问文本（跨虚拟化卸载保留）
-  var userParity = 1;           // 用户提问所在容器的索引奇偶（默认奇数，观测后修正）
+  var textById = new Map();     // turnKey -> 提问文本（跨虚拟化卸载保留）
   var rail = null;              // 自建 TOC 根节点
   var scrollRoot = null;
   var lastPrompts = [];         // 最近一次 scan 的提问列表，滚动高亮复用
@@ -100,11 +110,14 @@
   }
 
   function getThreadRoot() {
-    return document.querySelector('[class*="convSearchResultHighlightRoot"]');
+    return document.querySelector(ROOT_SEL);
   }
 
-  function findScrollRoot(from) {
-    var el = from;
+  function findScrollRoot() {
+    var el = document.querySelector(SCROLL_SEL);
+    if (el) return el;
+    var root = getThreadRoot();
+    el = root;
     while (el && el !== document.body) {
       if (el.scrollHeight > el.clientHeight + 50) {
         var oy = getComputedStyle(el).overflowY;
@@ -120,15 +133,20 @@
   }
 
   function headerHeight() {
-    var v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height'));
+    var v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height')) ||
+          parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-shell-titlebar-height'));
     return isFinite(v) && v > 0 ? v : 64;
   }
 
   function getTurnEl(tid) {
     var root = getThreadRoot();
     if (!root) return null;
-    return root.querySelector('section[data-turn-id="' + tid + '"]') ||
-           root.querySelector('[data-turn-id-container="' + tid + '"]');
+    return root.querySelector('[data-turn-key="' + tid + '"]');
+  }
+
+  // 一个 turn 容器 = 一对问答；用户提问即容器内的 ":user" 单元
+  function userUnitOf(turnEl) {
+    return turnEl.querySelector(USER_UNIT_SEL);
   }
 
   /* ---------------------------------------------------------------- 扫描 */
@@ -137,40 +155,27 @@
     var root = getThreadRoot();
     if (!root || !root.isConnected) { removeRail(); return; }
 
-    // 原生 TOC 已挂载时让位（DOM 变化会再次触发 scan，原生卸载后自动接管）
+    // 原生 TOC 已挂载时让位
     if (document.querySelector(NATIVE_SELECTOR)) { removeRail(); lastPrompts = []; return; }
 
-    if (!scrollRoot || !scrollRoot.isConnected) scrollRoot = findScrollRoot(root);
+    if (!scrollRoot || !scrollRoot.isConnected) scrollRoot = findScrollRoot();
 
-    // 占位容器 = 全部 turn 的有序骨架
-    var containers = [];
-    for (var n = root.firstElementChild; n; n = n.nextElementSibling) {
-      var t = n.getAttribute('data-turn-id-container');
-      if (t != null) containers.push(t);
-    }
+    var turns = root.querySelectorAll(TURN_SEL);
+    var prompts = [];
+    for (var i = 0; i < turns.length; i++) {
+      var t = turns[i];
+      var tid = t.getAttribute('data-turn-key');
+      if (isPhantom(tid)) continue;
 
-    // 从已挂载 section 观测类型与提问文本（虚拟化下只挂载一部分，随滚动逐步补全）
-    var sections = root.querySelectorAll('section[data-turn="user"][data-turn-id]');
-    for (var i = 0; i < sections.length; i++) {
-      var s = sections[i];
-      var tid = s.getAttribute('data-turn-id');
-      var idx = containers.indexOf(tid);
-      if (idx > 0) userParity = idx % 2;
-      if (!textById.has(tid)) {
-        var node = s.querySelector(TEXT_SEL) || s.querySelector('[data-message-author-role="user"]');
-        var text = (node ? node.textContent : s.textContent) || '';
+      // 已挂载时提取提问文本并缓存（虚拟化卸载后仍保留）
+      var unit = userUnitOf(t);
+      if (unit && !textById.has(tid)) {
+        var node = unit.querySelector(USER_TEXT_SEL);
+        var text = (node ? node.textContent : unit.textContent) || '';
         text = text.replace(/\s+/g, ' ').trim();
         if (text) textById.set(tid, text.slice(0, 500));
       }
-    }
-
-    // 用户提问 = 奇偶匹配的容器（跳过幻影容器；文本未观测到时先以 Prompt N 兜底）
-    var prompts = [];
-    for (var j = 1; j < containers.length; j++) {
-      if (j % 2 !== userParity) continue;
-      var tid2 = containers[j];
-      if (isPhantom(tid2)) continue;
-      prompts.push({ tid: tid2, idx: j, text: textById.get(tid2) || 'Prompt ' + (prompts.length + 1) });
+      prompts.push({ tid: tid, el: t, text: textById.get(tid) || 'Prompt ' + (prompts.length + 1) });
     }
     lastPrompts = prompts;
 
@@ -243,30 +248,32 @@
 
   /* ---------------------------------------------------------- 高亮与跳转 */
 
-  // 只遍历线程根的直接子节点（占位与挂载内容同层），拿到每个 prompt 的当前纵向位置
   function syncActive() {
     if (!rail || !rail.isConnected || !lastPrompts.length) return;
     var root = getThreadRoot();
     if (!root) return;
 
     var want = new Map();
-    for (var i = 0; i < lastPrompts.length; i++) want.set(lastPrompts[i].tid, i);
-
-    var line = (scrollRoot || root.parentElement).getBoundingClientRect().top + 0;
-    var viewportLine = line + (scrollRoot ? scrollRoot.clientHeight : innerHeight) * 0.35;
-    var activeIdx = 0;
-    for (var n = root.firstElementChild; n; n = n.nextElementSibling) {
-      var k = want.get(n.getAttribute('data-turn-id-container'));
-      if (k == null) continue;
-      if (n.getBoundingClientRect().top <= viewportLine) activeIdx = k;
+    var els = new Map();
+    for (var i = 0; i < lastPrompts.length; i++) {
+      want.set(lastPrompts[i].tid, i);
+      els.set(lastPrompts[i].tid, lastPrompts[i].el);
     }
+
+    var viewportLine = (scrollRoot ? scrollRoot.getBoundingClientRect().top : 0) +
+      (scrollRoot ? scrollRoot.clientHeight : innerHeight) * 0.35;
+    var activeIdx = 0;
+    root.querySelectorAll(TURN_SEL).forEach(function (n) {
+      var k = want.get(n.getAttribute('data-turn-key'));
+      if (k == null) return;
+      if (n.getBoundingClientRect().top <= viewportLine) activeIdx = k;
+    });
 
     rail.querySelectorAll('.cgpt-toc-tick,.cgpt-toc-item').forEach(function (el) {
       var on = +el.getAttribute('data-idx') === activeIdx;
       if (on) el.setAttribute('data-active', ''); else el.removeAttribute('data-active');
     });
 
-    // 展开面板时让当前项保持可见
     var activeItem = rail.querySelector('.cgpt-toc-item[data-active]');
     if (activeItem) {
       var list = activeItem.closest('.cgpt-toc-list');
@@ -283,8 +290,8 @@
   function jumpTo(p) {
     var root = getThreadRoot();
     if (!root) return;
-    if (!scrollRoot || !scrollRoot.isConnected) scrollRoot = findScrollRoot(root);
-    var el = getTurnEl(p.tid);
+    if (!scrollRoot || !scrollRoot.isConnected) scrollRoot = findScrollRoot();
+    var el = getTurnEl(p.tid) || p.el;
     if (!el || !scrollRoot) return;
     var seq = ++jumpSeq;
     userScrolled = false;
@@ -340,7 +347,6 @@
     if (next === cid) return;
     cid = next;
     textById = new Map();
-    userParity = 1;
     scrollRoot = null;
     lastPrompts = [];
     removeRail();
@@ -391,5 +397,7 @@
     scheduleScan();
   }
 
-  init();
+  // document-start 注入时 documentElement 可能尚不存在，等它可用再 init
+  if (document.documentElement) init();
+  else addEventListener('DOMContentLoaded', init, { once: true });
 })();
