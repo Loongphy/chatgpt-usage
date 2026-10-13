@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT 默认模型 GPT-6 High
 // @namespace    local.chatgpt.default-model
-// @version      1.1.0
+// @version      1.1.1
 // @description  让 chatgpt.com 新会话默认选中 GPT-6 High（绕过 workspace_model_policy 的 prefer_policy 强制默认）
 // @match        https://chatgpt.com/*
 // @match        https://chat.openai.com/*
@@ -23,8 +23,14 @@
 //   /backend-api/f/conversation 请求，无需再改发送请求。
 // - 实测：gpt-6-thinking + extended 对应的实际后端 slug 为 gpt-6.1-sol-wm
 //   （"Sol" 是 GPT-6.1 的内部代号；High/Medium 只是 effort 档位，非不同模型）。
+// - effort 的 seed 取自 /backend-api/models 响应的
+//   workspace_model_policy.selection.thinking_effort（prefer_policy 优先于
+//   cookie last-used）。不改写它时 slug=gpt-6-thinking + effort=null 会被
+//   前端解析为 standard（Medium）。所以本脚本同时改写 models 响应。
 //
 // 变更：
+//   1.1.1 修复默认档位只到 Medium：补改 /backend-api/models 响应中
+//         workspace_model_policy.selection 与 default_model_slug。
 //   1.1.0 补充 slug->后端模型的实测映射注释；首次验证通过版本。
 //   1.0.0 初版。
 
@@ -60,11 +66,33 @@
     return /\/backend-api\/conversation\/init/.test(url);
   }
 
+  function isModels(url) {
+    return /\/backend-api\/models[?/]/.test(url);
+  }
+
   function rewriteInitResponse(resp) {
     return resp.clone().json().then(function (j) {
       if (j && typeof j === 'object') {
         if ('default_model_slug' in j) j.default_model_slug = MODEL_SLUG;
         if ('intended_default_model_slug' in j) j.intended_default_model_slug = MODEL_SLUG;
+      }
+      return new Response(JSON.stringify(j), {
+        status: resp.status,
+        statusText: resp.statusText,
+        headers: resp.headers
+      });
+    }).catch(function () { return resp; });
+  }
+
+  function rewriteModelsResponse(resp) {
+    return resp.clone().json().then(function (j) {
+      if (j && typeof j === 'object') {
+        var wp = j.workspace_model_policy;
+        if (wp && wp.selection) {
+          wp.selection.model = MODEL_SLUG;
+          wp.selection.thinking_effort = THINKING_EFFORT;
+        }
+        if ('default_model_slug' in j) j.default_model_slug = MODEL_SLUG;
       }
       return new Response(JSON.stringify(j), {
         status: resp.status,
@@ -102,6 +130,9 @@
         }
       }
       return origFetch(input, init).then(function (r) { return rewriteInitResponse(r); });
+    }
+    if (isModels(url)) {
+      return origFetch(input, init).then(function (r) { return rewriteModelsResponse(r); });
     }
     return origFetch(input, init);
   };
