@@ -11,6 +11,7 @@
 // @noframes
 // @run-at       document-idle
 // @downloadURL  https://github.com/Loongphy/chatgpt-usage/raw/refs/heads/main/chatgpt-always-toc.user.js
+// @updateURL    https://github.com/Loongphy/chatgpt-usage/raw/refs/heads/main/chatgpt-always-toc.user.js
 // ==/UserScript==
 //
 // 原生 TOC（右侧竖排刻度 + 悬停展开完整提问列表）只有在提问数达到一定阈值的长对话里才会渲染，
