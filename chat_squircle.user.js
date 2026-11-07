@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Chat Squircle
 // @namespace    https://loongphy.com
-// @version      1.3.1
-// @description  Adds corner-shape: squircle to the ChatGPT / Microsoft 365 Copilot chat input box
+// @version      1.4.2
+// @description  Adds corner-shape: squircle to the ChatGPT / Microsoft 365 Copilot / Grok chat input box
 // @author       Loongphy
 // @license      PolyForm-Noncommercial-1.0.0; https://polyformproject.org/licenses/noncommercial/1.0.0/
 // @match        https://chatgpt.com/*
 // @match        https://m365.cloud.microsoft/*
+// @match        https://grok.com/*
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
@@ -16,9 +17,14 @@
 
     const PROP = 'corner-shape';
     const VAL = 'squircle';
-    // ChatGPT: #prompt-textarea
+    // ChatGPT: .ProseMirror[data-composer-markdown] — new composer is a
+    //   ProseMirror contenteditable; #prompt-textarea was removed.
+    //   Its visible corner box is the ancestor .ComposerLayoutRoot-*
+    //   (border-radius: 28px). Old #prompt-textarea kept for older deploys.
     // Microsoft 365 Copilot (m365.cloud.microsoft): #m365-chat-editor-target-element
-    const INPUT_SELECTORS = '#prompt-textarea, #m365-chat-editor-target-element';
+    // Grok (grok.com): .query-bar-editor (TipTap ProseMirror contenteditable);
+    // its visible corner box is the ancestor .query-bar (border-radius: 160px pill)
+    const INPUT_SELECTORS = '#prompt-textarea, .ProseMirror[data-composer-markdown], #m365-chat-editor-target-element, .query-bar-editor';
 
     // ChatGPT re-renders the composer frequently and occasionally wraps it in
     // an extra (or fewer) layer of divs. A fixed parent depth therefore breaks
@@ -39,7 +45,7 @@
     }
 
     function applySquircle(el) {
-        const target = findVisibleCornerBox(el, 8);
+        const target = findVisibleCornerBox(el, 12);
         if (!target) return;
         if (target.style.getPropertyValue(PROP) === VAL) return; // already applied
         target.style.setProperty(PROP, VAL);
