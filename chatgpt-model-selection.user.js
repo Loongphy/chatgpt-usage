@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         chatgpt model selection
 // @namespace    https://loongphy.com
-// @version      1.3.6
+// @version      1.3.7
 // @description  DEPRECATED — ChatGPT now manages default reasoning effort natively at https://chatgpt.com/admin/models?tab=workspace
 // @author       Loongphy
 // @license      PolyForm-Noncommercial-1.0.0; https://polyformproject.org/licenses/noncommercial/1.0.0/
@@ -15,6 +15,7 @@
 
 (function () {
     "use strict";
+    return; // DEPRECATED: no-op, kept only so existing installs stop working
 
     // ================================================================
     //  Config

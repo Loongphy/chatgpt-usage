@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         ChatGPT Long Thread Scroll Booster
 // @namespace    https://loongphy.com
-// @version      2.0.1
-// @description  Fixes jank when scrolling up in very long ChatGPT threads: skips style/layout/paint for off-screen content via content-visibility + measured contain-intrinsic-size (measured: 79ms -> 32ms per frame, -72% main-thread blocking), disables the header backdrop blur while scrolling, and shows a always-on FPS / blocking HUD in the bottom-right corner.
+// @version      2.0.2
+// @description  DEPRECATED — no longer maintained. Fixes jank when scrolling up in very long ChatGPT threads: skips style/layout/paint for off-screen content via content-visibility + measured contain-intrinsic-size (measured: 79ms -> 32ms per frame, -72% main-thread blocking), disables the header backdrop blur while scrolling, and shows a always-on FPS / blocking HUD in the bottom-right corner.
 // @author       Loongphy
 // @match        https://chatgpt.com/*
 // @match        https://chat.openai.com/*
@@ -27,6 +27,7 @@
 //
 (function () {
   'use strict';
+  return; // DEPRECATED: no-op, kept only so existing installs stop working
 
   /* ---------------------------------------------------------------- 配置
      优化与 HUD 都是常开状态，不提供关闭开关；这里只保留“哪些补丁生效”的细项。 */
