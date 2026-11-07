@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT Always-On Conversation TOC
 // @namespace    https://loongphy.com
-// @version      1.1.0
+// @version      1.2.0
 // @description  Always show ChatGPT's right-edge conversation TOC (tick rail; hover expands the full prompt outline, click to jump) — removes the native limit of only showing it after N prompts. Yields to the native TOC on long threads and follows dark/light themes.
 // @author       Loongphy
 // @license      PolyForm-Noncommercial-1.0.0; https://polyformproject.org/licenses/noncommercial/1.0.0/
@@ -25,6 +25,14 @@
 //   - 滚动时只做一次遍历来同步高亮（rAF 节流），不与滚动加速脚本抢主线程。
 //
 // 变更：
+//   1.2.0 新版设计系统换肤：--main-surface-*/--text-*/--border-* 变量被移除，
+//         改用 --app-color-* 语义 token（自动跟随明/暗主题）；
+//         修复切到“新对话”(/) 后 TOC 残留 —— 前端把上一段会话完整留在
+//         DOM 里当背景，现要求 URL 必须落在会话页才渲染；
+//         scheduleScan 防抖改节流 —— 持续 mutation 洪峰下纯防抖会让 scan
+//         永远排不上（表现为 TOC 迟来或状态滞留）；
+//         --header-height 变量移除，scroll container 自身已避开 titlebar，
+//         跳转偏移改为 0 + SCROLL_EXTRA。
 //   1.1.0 适配 AppShell 新 DOM：thread root/turn/user-unit/scroll container
 //         选择器全部更换；一容器一提问，不再需要奇偶位推断。
 //   1.0.x 基于 convSearchResultHighlightRoot + data-turn-id-container 的旧实现。
@@ -56,6 +64,12 @@
 
   /* ---------------------------------------------------------------- 样式 */
 
+  // 颜色 token：新版 --app-color-* 在前，旧版 --text-*/--main-surface-*/--border-*
+  // 在中，最后是定值兜底。三级文字 hover/active 逐级提亮，panel 用 elevated
+  // 表面 + 原生菜单阴影，明/暗主题由站点变量自动切换。
+  var FG = 'var(--app-color-text-foreground,var(--text-primary,#0d0d0d))';
+  var FG2 = 'var(--app-color-text-foreground-secondary,var(--text-secondary,#5d5d5d))';
+  var FG3 = 'var(--app-color-text-foreground-tertiary,var(--text-tertiary,#8f8f8f))';
   var css = [
     '#' + HOST_ID + '{position:fixed;inset-inline-end:16px;top:50%;transform:translateY(-50%);' +
       'z-index:20;font-family:inherit;}',
@@ -64,15 +78,17 @@
       'padding:4px 0;width:36px;max-height:min(50vh,500px);overflow:hidden;box-sizing:border-box;}',
     '#' + HOST_ID + ' .cgpt-toc-tick{display:block;width:18px;height:2px;padding:0;border:0;' +
       'border-radius:9999px;cursor:pointer;flex-shrink:0;background:color-mix(in srgb,' +
-      'var(--text-tertiary,#8f8f8f) 60%,transparent);transition:background .15s ease;}',
-    '#' + HOST_ID + ' .cgpt-toc-tick:hover{background:var(--text-secondary,#5d5d5d);}',
-    '#' + HOST_ID + ' .cgpt-toc-tick[data-active]{background:var(--text-primary,#0d0d0d);}',
+      FG3 + ' 60%,transparent);transition:background .15s ease;}',
+    '#' + HOST_ID + ' .cgpt-toc-tick:hover{background:' + FG2 + ';}',
+    '#' + HOST_ID + ' .cgpt-toc-tick[data-active]{background:' + FG + ';}',
     '#' + HOST_ID + ' .cgpt-toc-panel{position:absolute;inset-inline-end:0;top:50%;' +
       'transform:translate(4px,-50%);opacity:0;pointer-events:none;z-index:50;' +
       'min-width:240px;width:max-content;max-width:340px;box-sizing:border-box;' +
-      'padding:6px 0;border-radius:16px;border:1px solid var(--border-light,rgba(0,0,0,.05));' +
-      'background:var(--main-surface-primary,#fff);box-shadow:0 10px 30px rgba(0,0,0,.12),' +
-      '0 2px 8px rgba(0,0,0,.06);transition:opacity .16s cubic-bezier(.33,1,.68,1),' +
+      'padding:6px 0;border-radius:16px;border:1px solid ' +
+      'var(--app-color-border-light,var(--border-light,rgba(0,0,0,.05)));' +
+      'background:var(--app-color-background-elevated-primary,var(--main-surface-primary,#fff));' +
+      'box-shadow:var(--menu-box-shadow,0 10px 30px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.06));' +
+      'transition:opacity .16s cubic-bezier(.33,1,.68,1),' +
       'transform .16s cubic-bezier(.33,1,.68,1);}',
     '#' + HOST_ID + ' .cgpt-toc-wrap:hover .cgpt-toc-panel{opacity:1;transform:translate(0,-50%);' +
       'pointer-events:auto;}',
@@ -81,15 +97,15 @@
     '#' + HOST_ID + ' .cgpt-toc-item{display:block;box-sizing:border-box;margin:0 4px;' +
       'width:calc(100% - 8px);padding:7px 10px;border:0;border-radius:10px;background:none;' +
       'cursor:pointer;text-align:start;font:inherit;font-size:14px;line-height:1.45;' +
-      'color:var(--text-primary,#0d0d0d);}',
+      'color:' + FG + ';}',
     '#' + HOST_ID + ' .cgpt-toc-item:hover{background:color-mix(in srgb,' +
-      'var(--text-primary,#0d0d0d) 6%,transparent);}',
+      FG + ' 6%,transparent);}',
     '#' + HOST_ID + ' .cgpt-toc-item[data-active]{font-weight:600;background:color-mix(in srgb,' +
-      'var(--text-primary,#0d0d0d) 5%,transparent);}',
+      FG + ' 5%,transparent);}',
     '#' + HOST_ID + ' .cgpt-toc-item span{display:block;overflow:hidden;text-overflow:ellipsis;' +
       'white-space:nowrap;}',
     '#' + HOST_ID + ' .cgpt-toc-tick:focus-visible,#' + HOST_ID + ' .cgpt-toc-item:focus-visible' +
-      '{outline:2px solid var(--text-tertiary,#8f8f8f);outline-offset:1px;}'
+      '{outline:2px solid ' + FG3 + ';outline-offset:1px;}'
   ];
 
   function injectStyle() {
@@ -105,7 +121,7 @@
   /* ---------------------------------------------------------------- 工具 */
 
   function getConversationId() {
-    var m = location.pathname.match(/^\/(?:c|share\/c)\/([0-9a-f-]{16,})/i);
+    var m = location.pathname.match(/^\/(?:c|share\/c|g\/[a-z0-9-]+\/c)\/([0-9a-f-]{16,})/i);
     return m ? m[1] : null;
   }
 
@@ -135,7 +151,8 @@
   function headerHeight() {
     var v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-height')) ||
           parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-shell-titlebar-height'));
-    return isFinite(v) && v > 0 ? v : 64;
+    // 新版 AppShell：scroll container 本身已位于 titlebar 之下，无需额外补偿
+    return isFinite(v) && v > 0 ? v : 0;
   }
 
   function getTurnEl(tid) {
@@ -152,6 +169,10 @@
   /* ---------------------------------------------------------------- 扫描 */
 
   function scan() {
+    // 首页/新对话页（/）会把上一段会话保留在 DOM 里当背景预览，
+    // 其 turn 仍可被扫到 —— 只有 URL 落在真实会话页时才渲染 TOC。
+    if (!getConversationId()) { removeRail(); lastPrompts = []; return; }
+
     var root = getThreadRoot();
     if (!root || !root.isConnected) { removeRail(); return; }
 
@@ -337,9 +358,12 @@
 
   /* ---------------------------------------------------------------- 调度 */
 
+  // 节流式防抖：新前端持续产生 DOM mutation（骨架屏/状态动画），纯防抖的
+  // timer 会被不断重置、scan 永远排不上。改为一旦排队就不再重置，保证
+  // mutation 洪峰下 scan 仍至多每 150ms 执行一次。
   function scheduleScan() {
-    clearTimeout(scanTimer);
-    scanTimer = setTimeout(scan, 150);
+    if (scanTimer) return;
+    scanTimer = setTimeout(function () { scanTimer = 0; scan(); }, 150);
   }
 
   function onUrlChange() {

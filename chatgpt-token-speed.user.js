@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT Token Speed
 // @namespace    https://loongphy.com
-// @version      0.1.2
+// @version      0.1.3
 // @description  Shows token generation speed while ChatGPT streams a reply.
 // @author       Loongphy
 // @match        https://chatgpt.com/*
@@ -15,7 +15,12 @@
 (function () {
     'use strict';
 
-    const SEL = '[data-message-author-role="assistant"]';
+    // Assistant message container. New AppShell DOM dropped
+    // data-message-author-role; search units carry the role in the key
+    // suffix instead. Keep both for older deploys.
+    const SEL = '[data-message-author-role="assistant"],' +
+        '[data-chatgpt-search-unit-key$=":assistant"],' +
+        '[data-content-search-unit-key$=":assistant"]';
     // Reasoning steps ("Thinking", tool calls, "Searching the web") render as
     // siblings of the message node inside the same turn — never inside it — so
     // counting only the role-attributed node's text excludes them. They stream
@@ -258,10 +263,12 @@
     // Stream-in-progress signals that survive through thinking/tool pauses:
     // the scroll root carries data-stream-active, the composer swaps its send
     // button for a stop button, and the response-status container exists.
+    // New AppShell renamed the scroll root to data-app-action-timeline-scroll.
     function streamLive() {
         return !!document.querySelector(
             '[data-scroll-root][data-stream-active],' +
-            'button[data-testid="stop-button"],' +
+            '[data-app-action-timeline-scroll][data-stream-active],' +
+            'button[data-testid*="stop" i],' +
             STREAM_SEL);
     }
 
