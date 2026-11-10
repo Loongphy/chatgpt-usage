@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT Instant Conversation Warmup
 // @namespace    https://loongphy.com
-// @version      1.1.1.0.0
+// @version      1.2.0
 // @description  Opens ChatGPT conversations without the empty-bubble wait.
 // @author       Loongphy
 // @match        https://chatgpt.com/*
@@ -18,6 +18,8 @@
   const API_PREFIX = "/backend-api/conversations/";
   const QUERY = "num_turns=10&include_has_versions=true";
   const TTL_MS = 20_000;
+  const DUP_WINDOW_MS = 2_000;
+  const HOVER_DELAY_MS = 150;
   const AUTH_WAIT_MS = 30_000;
   const cache = new Map();
   const appRequested = new Set();
@@ -59,7 +61,14 @@
 
   const prefetch = (url) => {
     const hit = cache.get(url);
-    if (hit && Date.now() - hit.at < TTL_MS) return hit;
+    if (
+      hit &&
+      Date.now() - hit.at < TTL_MS &&
+      (hit.phase === "fetch" ||
+        (hit.body !== undefined && hit.servedAt === undefined))
+    ) {
+      return hit;
+    }
     const entry = { at: Date.now(), phase: "auth" };
     entry.promise = authReady
       .then(() => {
@@ -69,12 +78,12 @@
           .then((r) => (r.ok ? r.text() : Promise.reject(r.status)))
           .then((body) => {
             stats.warmed++;
-            cache.set(url, { at: Date.now(), body });
+            cache.set(url, { at: Date.now(), body, servedAt: entry.servedAt });
             return body;
           });
       })
       .catch(() => {
-        cache.delete(url);
+        if (cache.get(url) === entry) cache.delete(url);
         return undefined;
       });
     cache.set(url, entry);
@@ -109,17 +118,28 @@
       /num_turns=10\b/.test(url)
     ) {
       const hit = cache.get(url);
-      const fresh = hit && Date.now() - hit.at < TTL_MS;
-      if (fresh && (hit.body !== undefined || hit.phase === "fetch")) {
-        stats.served++;
-        return (hit.body !== undefined
-          ? Promise.resolve(hit.body)
-          : hit.promise
-        ).then((body) =>
-          body !== undefined
-            ? jsonResponse(body)
-            : origFetch.call(this, input, init),
-        );
+      if (hit && Date.now() - hit.at < TTL_MS) {
+        const inflight = hit.phase === "fetch";
+        const unserved =
+          hit.body !== undefined && hit.servedAt === undefined;
+        const dupGrace =
+          hit.servedAt !== undefined &&
+          Date.now() - hit.servedAt < DUP_WINDOW_MS;
+        if (inflight || unserved || dupGrace) {
+          stats.served++;
+          hit.servedAt ??= Date.now();
+          return (hit.body !== undefined
+            ? Promise.resolve(hit.body)
+            : hit.promise
+          ).then((body) =>
+            body !== undefined
+              ? jsonResponse(body)
+              : origFetch.call(this, input, init),
+          );
+        }
+        // Already served once — a later request is a deliberate refetch
+        // and must hit the network, not get our stale copy back.
+        cache.delete(url);
       }
       stats.miss++;
       appRequested.add(url);
@@ -133,12 +153,45 @@
   const id = idFromHref(location.pathname);
   if (id) prefetch(urlForId(id));
 
-  const onIntent = (e) => {
-    const a = e.target?.closest?.("a[href*='/c/']");
+  let hoverEl = null;
+  let hoverTimer = 0;
+  const warmAnchor = (a) => {
     const cid = a && idFromHref(a.getAttribute("href"));
     if (cid) prefetch(urlForId(cid));
   };
-  for (const type of ["pointerover", "touchstart", "focusin", "pointerdown"]) {
-    document.addEventListener(type, onIntent, { capture: true, passive: true });
+  // Hover is cheap intent — sweeping across the sidebar shouldn't fire a
+  // fetch per item, so warm only after the pointer settles briefly.
+  const onOver = (e) => {
+    const a = e.target?.closest?.("a[href*='/c/']");
+    if (!a || a === hoverEl) return;
+    clearTimeout(hoverTimer);
+    hoverEl = a;
+    hoverTimer = setTimeout(() => {
+      hoverEl = null;
+      warmAnchor(a);
+    }, HOVER_DELAY_MS);
+  };
+  const onOut = (e) => {
+    const a = e.target?.closest?.("a[href*='/c/']");
+    if (a === hoverEl && !a.contains(e.relatedTarget)) {
+      clearTimeout(hoverTimer);
+      hoverEl = null;
+    }
+  };
+  const onCommit = (e) => {
+    clearTimeout(hoverTimer);
+    hoverEl = null;
+    warmAnchor(e.target?.closest?.("a[href*='/c/']"));
+  };
+  document.addEventListener("pointerover", onOver, {
+    capture: true,
+    passive: true,
+  });
+  document.addEventListener("pointerout", onOut, {
+    capture: true,
+    passive: true,
+  });
+  for (const type of ["touchstart", "focusin", "pointerdown"]) {
+    document.addEventListener(type, onCommit, { capture: true, passive: true });
   }
 })();
