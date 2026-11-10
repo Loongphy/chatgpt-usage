@@ -15,6 +15,26 @@
 (() => {
   "use strict";
 
+  // Skip layout/paint for off-screen turns: assistant units run 1-3k px
+  // tall, so on open ~90% of a long thread is below the fold. Measured
+  // ~3-7s faster to rendered content on cold loads (same conv A/B).
+  const injectCV = () => {
+    const s = document.createElement("style");
+    s.textContent =
+      "@media screen{[data-chatgpt-search-unit-key]{" +
+      "content-visibility:auto;contain-intrinsic-size:auto 1000px}}";
+    (document.head || document.documentElement).appendChild(s);
+  };
+  if (document.documentElement) injectCV();
+  else {
+    new MutationObserver((_, obs) => {
+      if (document.documentElement) {
+        injectCV();
+        obs.disconnect();
+      }
+    }).observe(document, { childList: true });
+  }
+
   const API_PREFIX = "/backend-api/conversations/";
   const QUERY = "num_turns=10&include_has_versions=true";
   const TTL_MS = 20_000;
