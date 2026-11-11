@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Chat Squircle
 // @namespace    https://loongphy.com
-// @version      1.4.3
-// @description  Adds corner-shape: squircle to the ChatGPT / Microsoft 365 Copilot / Grok chat input box
+// @version      1.4.4
+// @description  Adds corner-shape: squircle to the ChatGPT / Copilot / Grok chat input box
 // @author       Loongphy
 // @license      PolyForm-Noncommercial-1.0.0; https://polyformproject.org/licenses/noncommercial/1.0.0/
 // @match        https://chatgpt.com/*
+// @match        https://copilot.com/*
 // @match        https://copilot.cloud.microsoft/*
 // @match        https://grok.com/*
 // @grant        none
@@ -21,7 +22,8 @@
     //   ProseMirror contenteditable; #prompt-textarea was removed.
     //   Its visible corner box is the ancestor .ComposerLayoutRoot-*
     //   (border-radius: 28px). Old #prompt-textarea kept for older deploys.
-    // Microsoft 365 Copilot (copilot.cloud.microsoft, ex-m365.cloud.microsoft):
+    // Copilot (copilot.com) & Microsoft 365 Copilot (copilot.cloud.microsoft,
+    //   ex-m365.cloud.microsoft) share the same Fluent editor:
     //   #m365-chat-editor-target-element
     // Grok (grok.com): .query-bar-editor (TipTap ProseMirror contenteditable);
     // its visible corner box is the ancestor .query-bar (border-radius: 160px pill)
