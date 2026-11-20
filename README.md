@@ -48,7 +48,7 @@
 
 ### 新标签页打开 [chatgpt-open-in-new-tab.user.js](./chatgpt-open-in-new-tab.user.js)
 
-- **功能描述**: 为 ChatGPT 侧边栏会话右键菜单顶部注入“在新标签页打开”（菜单文案跟随菜单自身语言，英文界面显示 Open in new tab），同时把侧边栏 “New chat” 按钮转换为真实链接 `<a href="/">`，右键可直接使用浏览器原生菜单（新标签页/新窗口中打开、复制链接等），普通左键仍走 ChatGPT 自身路由。
+- **功能描述**: 为 ChatGPT 侧边栏会话右键菜单顶部注入“在新标签页打开”（菜单文案跟随菜单自身语言，英文界面显示 Open in new tab），同时把侧边栏 “New chat” 按钮转换为真实链接 `<a href="/">`，右键可直接使用浏览器原生菜单（新标签页/新窗口中打开、复制链接等），普通左键仍走 ChatGPT 自身路由。另外，在首页出现 Chat/Work 模式切换器时，每次新建对话都会默认切到 **Chat**（ChatGPT 会按服务端推荐把新对话恢复成 Work）。
 
 <img width="885" height="507" alt="PixPin_2026-09-26_18-47-54" src="https://github.com/user-attachments/assets/3e6211f4-8b68-4cf9-b8d9-8b34675ebc61" />
 
