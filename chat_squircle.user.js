@@ -1,14 +1,15 @@
 // ==UserScript==
 // @name         Chat Squircle
 // @namespace    https://loongphy.com
-// @version      1.4.4
-// @description  Adds corner-shape: squircle to the ChatGPT / Copilot / Grok chat input box
+// @version      1.5.0
+// @description  Adds corner-shape: squircle to the ChatGPT / Copilot / Grok / Gemini chat input box
 // @author       Loongphy
 // @license      PolyForm-Noncommercial-1.0.0; https://polyformproject.org/licenses/noncommercial/1.0.0/
 // @match        https://chatgpt.com/*
 // @match        https://copilot.com/*
 // @match        https://copilot.cloud.microsoft/*
 // @match        https://grok.com/*
+// @match        https://gemini.google.com/*
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
@@ -27,7 +28,10 @@
     //   #m365-chat-editor-target-element
     // Grok (grok.com): .query-bar-editor (TipTap ProseMirror contenteditable);
     // its visible corner box is the ancestor .query-bar (border-radius: 160px pill)
-    const INPUT_SELECTORS = '#prompt-textarea, .ProseMirror[data-composer-markdown], #m365-chat-editor-target-element, .query-bar-editor';
+    // Gemini (gemini.google.com): input-area-v2 .ql-editor (Quill
+    //   contenteditable); its visible corner box is the ancestor
+    //   input-area-v2 custom element (border-radius: 32px)
+    const INPUT_SELECTORS = '#prompt-textarea, .ProseMirror[data-composer-markdown], #m365-chat-editor-target-element, .query-bar-editor, input-area-v2 .ql-editor';
 
     // ChatGPT re-renders the composer frequently and occasionally wraps it in
     // an extra (or fewer) layer of divs. A fixed parent depth therefore breaks
