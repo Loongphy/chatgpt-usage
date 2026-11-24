@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Enhancement
 // @namespace    https://loongphy.com
-// @version      1.7.0
+// @version      1.7.1
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
 // @description  Performance tweaks (kills aurora blur, animations, backdrop-filter) + squircle input and widescreen layout
 // @author       Loongphy
@@ -41,14 +41,24 @@
         }
     `;
 
+    // 秒杀动画/过渡，但豁免功能性加载动画——否则 mat-progress-bar 的
+    // indeterminate 滑动段会瞬移到终点，顶部进度条看起来"跳来跳去"。
+    const PERF_MOTION_KEEP = [
+        'mat-progress-bar', 'mat-progress-spinner', 'mat-spinner',
+        '.mdc-linear-progress', '.mdc-circular-progress',
+        '[class*="skeleton"]', '[class*="shimmer"]',
+        'lottie-player', 'dotlottie-player',
+    ];
     const PERF_MOTION_STYLES = `
-        *,
-        *::before,
-        *::after {
+        *:not(${PERF_MOTION_KEEP.join(',')}, ${PERF_MOTION_KEEP.map(s => s + ' *').join(',')}),
+        *:not(${PERF_MOTION_KEEP.join(',')}, ${PERF_MOTION_KEEP.map(s => s + ' *').join(',')})::before,
+        *:not(${PERF_MOTION_KEEP.join(',')}, ${PERF_MOTION_KEEP.map(s => s + ' *').join(',')})::after {
             animation-duration: 0.01ms !important;
             animation-delay: 0ms !important;
             transition-duration: 0.01ms !important;
             transition-delay: 0ms !important;
+        }
+        * {
             scroll-behavior: auto !important;
         }
     `;
